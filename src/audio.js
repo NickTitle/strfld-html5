@@ -26,6 +26,7 @@ export class AudioController {
       sound.loop = options.loop;
       sound.volume = options.volume;
       this.sounds.set(name, sound);
+      if (sound.loop) sound.play().catch(() => {});
     }
     this.unlocked = true;
   }
