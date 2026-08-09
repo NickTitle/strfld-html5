@@ -28,9 +28,17 @@ test("initial state preserves original world and star configuration", () => {
 
   assert.equal(game.state, "title");
   assert.equal(game.stars.length, 150);
+  assert.equal(game.artifacts.length, 11);
   assert.equal(PHYSICS.starCount, 150);
+  assert.equal(PHYSICS.artifactCount, 11);
   assert.ok(game.ship.x >= 10_000 && game.ship.x < 10_100);
   assert.ok(game.ship.y >= 10_000 && game.ship.y < 10_100);
+  assert.deepEqual(game.artifacts.map((artifact) => artifact.song), [2, 3, 4, 5, 6, 7, 8, 9, 10, 1, 2]);
+  for (const artifact of game.artifacts) {
+    assert.ok(artifact.frequency >= 0 && artifact.frequency < 275);
+    assert.ok(artifact.x >= 0 && artifact.x < 20_000);
+    assert.ok(artifact.y >= 0 && artifact.y < 20_000);
+  }
 });
 
 test("title fades before accepting space", () => {
@@ -124,4 +132,57 @@ test("stars regenerate visual traits after crossing a boundary", () => {
   assert.ok(star.size >= 0.6 && star.size <= 15.5);
   assert.ok(star.rotation >= 0 && star.rotation < 90);
   assert.notEqual(star.color, "sentinel");
+});
+
+test("radio preserves original first-two and weaker-signal precedence", () => {
+  const game = new Game({ seed: 7 });
+  game.state = "playing";
+  game.radioOffset = 100;
+  game.ship.x = 10_000;
+  game.ship.y = 10_000;
+
+  const [first, second, third] = game.artifacts;
+  Object.assign(first, { frequency: 99, x: 11_000, y: 10_000 });
+  Object.assign(second, { frequency: 106, x: 10_500, y: 10_000 });
+  Object.assign(third, { frequency: 100, x: 10_010, y: 10_000 });
+
+  game.updateRadio();
+
+  assert.equal(game.radio.showSonar, true);
+  assert.equal(game.radio.activeArtifact, null);
+  assert.equal(second.visibleOnMap, true);
+  assert.equal(first.visibleOnMap, false);
+  assert.equal(third.visibleOnMap, false);
+  assert.equal(third.broadcastVolume, 0);
+  assert.ok(Math.abs(second.broadcastVolume - 0.58875) < 1e-12);
+  assert.ok(Math.abs(first.broadcastVolume - 0.1905) < 1e-12);
+  assert.ok(Math.abs(game.radio.staticVolume - 0.3084375) < 1e-12);
+  assert.equal(game.radio.sonarBearing, 180);
+});
+
+test("radio off, static, proximity, and turned-off behavior match source", () => {
+  const game = new Game({ seed: 8 });
+  game.state = "playing";
+  const artifact = game.artifacts[0];
+  artifact.frequency = 50;
+  artifact.x = game.ship.x + 100;
+  artifact.y = game.ship.y;
+
+  game.radioOffset = 50;
+  game.updateRadio();
+  assert.equal(game.radio.activeArtifact, artifact);
+  assert.equal(game.radio.staticVolume, 0);
+  assert.equal(artifact.visibleOnMap, true);
+
+  artifact.turnedOff = true;
+  game.updateRadio();
+  assert.equal(game.radio.showSonar, false);
+  assert.equal(game.radio.staticVolume, 0.75);
+  assert.equal(game.radio.activeArtifact, artifact);
+
+  game.radioOffset = 0;
+  game.updateRadio();
+  assert.equal(game.radio.staticVolume, 0);
+  assert.equal(game.radio.showSonar, false);
+  assert.equal(game.radio.activeArtifact, null);
 });

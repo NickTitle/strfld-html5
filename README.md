@@ -3,10 +3,11 @@
 A browser-native JavaScript and HTML5 Canvas port of Nick Esposito's 2013
 Ruby/Gosu game [Starfield](https://github.com/NickTitle/starfield).
 
-This is an in-progress preservation port. Milestone 1 establishes the static
-browser shell, deterministic 60 Hz simulation, original ship controls, radio
-dial bounds, parallax starfield, lazy browser audio, and automated tests. The
-source-traced parity plan is in [`PARITY.md`](./PARITY.md).
+This is an in-progress preservation port. The current milestones establish the
+static browser shell, deterministic 60 Hz simulation, original ship controls,
+radio dial and signal mixing, 11 seeded artifacts, parallax starfield, lazy
+browser audio, and automated tests. The source-traced parity plan is in
+[`PARITY.md`](./PARITY.md).
 
 ## Run
 
