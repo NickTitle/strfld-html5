@@ -230,10 +230,7 @@ export class Game {
   }
 
   updateFinaleFlight(frames) {
-    this.ship.engineVolume = this.ship.engineVolume > 0.05
-      ? this.ship.engineVolume * (0.95 ** frames)
-      : 0;
-    this.updateParticles(frames, false, true);
+    this.updateShipMotion(frames, EMPTY_INPUT, true);
     this.updateStars(frames);
     this.updateArtifacts(frames);
     this.ship.angle = 52;
@@ -305,7 +302,7 @@ export class Game {
     this.updateRadioTuning(frames, input, pausedForStory);
   }
 
-  updateShipMotion(frames, input) {
+  updateShipMotion(frames, input, fullStrength = false) {
     if (input.left) this.ship.angle = (this.ship.angle - 2 * frames + 360) % 360;
     else if (input.right) this.ship.angle = (this.ship.angle + 2 * frames) % 360;
 
@@ -328,7 +325,7 @@ export class Game {
         this.ship.angle = (this.ship.angle + (this.ship.vy > 0 ? -0.1 : 0.1) * frames + 360) % 360;
       }
     }
-    this.updateParticles(frames, input.thrust, false);
+    this.updateParticles(frames, input.thrust, fullStrength);
   }
 
   updateParticles(frames, thrust, fullStrength) {

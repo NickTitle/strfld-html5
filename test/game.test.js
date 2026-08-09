@@ -517,16 +517,19 @@ test("finale preserves source fade, delay, audio, flyby, and blackout timing", (
   game.secondaryParticles = [secondary];
   Object.assign(primary, { cycles: 0, maxCycles: 1, yScalar: 0.2 });
   Object.assign(secondary, { cycles: 0, maxCycles: 1, yScalar: 0.2 });
+  game.stars = [{ x: 100, y: 100, z: 1, size: 1, rotation: 0, color: "#ffffff" }];
   game.ship.angle = 10;
-  game.ship.vx = 0;
+  game.ship.vx = 1;
   game.ship.vy = 0;
   advance(game, 1);
   assert.equal(primary.yScalar, 1);
   assert.equal(secondary.yScalar, 1);
-  assert.equal(primary.angle, 10);
-  assert.equal(secondary.angle, 10);
+  assert.ok(Math.abs(primary.angle - 10.1) < 1e-12);
+  assert.ok(Math.abs(secondary.angle - 10.1) < 1e-12);
+  assert.ok(Math.abs(game.stars[0].x - 99.005) < 1e-12);
+  assert.equal(game.stars[0].y, 100);
   assert.equal(game.ship.angle, 52);
-  assert.ok(Math.abs(game.ship.vx - 0.03 * Math.sin(52 * Math.PI / 180)) < 1e-12);
+  assert.ok(Math.abs(game.ship.vx - (0.995 + 0.03 * Math.sin(52 * Math.PI / 180))) < 1e-12);
   assert.ok(Math.abs(game.ship.vy + 0.03 * Math.cos(52 * Math.PI / 180)) < 1e-12);
   assert.ok(Math.abs(game.finale.opacity - (1 - 0.3 / 255)) < 1e-12);
 
