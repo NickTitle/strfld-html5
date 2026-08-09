@@ -1,5 +1,9 @@
 import { COLORS, VIEW_HEIGHT, VIEW_WIDTH } from "./constants.js";
 
+function integerDivide(dividend, divisor) {
+  return Math.trunc(dividend / divisor);
+}
+
 export class CanvasRenderer {
   constructor(canvas) {
     this.canvas = canvas;
@@ -104,23 +108,29 @@ export class CanvasRenderer {
   }
 
   drawOctagon(x, y, size, color) {
+    const quarter = integerDivide(size, 4);
+    const threeQuarters = integerDivide(size * 3, 4);
     this.fillPolygon([
-      [x, y + size / 4],
-      [x + size / 4, y],
-      [x + size * 3 / 4, y],
-      [x + size, y + size / 4],
-      [x + size, y + size * 3 / 4],
-      [x + size * 3 / 4, y + size],
-      [x + size / 4, y + size],
-      [x, y + size * 3 / 4]
+      [x, y + quarter],
+      [x + quarter, y],
+      [x + threeQuarters, y],
+      [x + size, y + quarter],
+      [x + size, y + threeQuarters],
+      [x + threeQuarters, y + size],
+      [x + quarter, y + size],
+      [x, y + threeQuarters]
     ], color);
   }
 
   drawArtifact(artifact, ship) {
     const context = this.context;
     const size = artifact.size;
-    const left = -size / 2;
-    const top = -size / 2;
+    const half = integerDivide(size, 2);
+    const quarter = integerDivide(size, 4);
+    const tenth = integerDivide(size, 10);
+    const threeQuarters = integerDivide(size * 3, 4);
+    const left = -half;
+    const top = -half;
     context.save();
     context.translate(
       VIEW_WIDTH / 2 + artifact.x - ship.x,
@@ -131,14 +141,14 @@ export class CanvasRenderer {
 
     const tower = artifact.towerColor;
     this.fillPolygon([
-      [left + size / 4, top + size / 10],
-      [left + size / 4 + size / 10, top + size / 10],
-      [left + size / 2, top - size * 3 / 4]
+      [left + quarter, top + tenth],
+      [left + quarter + tenth, top + tenth],
+      [left + half, top - threeQuarters]
     ], tower);
     this.fillPolygon([
-      [left + size * 3 / 4, top + size / 10],
-      [left + size * 3 / 4 - size / 10, top + size / 10],
-      [left + size / 2, top - size * 3 / 4]
+      [left + size - quarter, top + tenth],
+      [left + size - (quarter + tenth), top + tenth],
+      [left + size - half, top - threeQuarters]
     ], tower);
     this.fillPolygon([
       [left + 0.34 * size, top - 0.12 * size],
@@ -165,24 +175,37 @@ export class CanvasRenderer {
       [left + 0.61 * size, top - 0.34 * size]
     ], tower);
 
-    const houseX = left + size * 7 / 32;
-    const houseY = top + size * 3 / 64;
-    const houseWidth = size / 6;
-    const houseHeight = size / 16;
-    const roof = size / 32;
+    const houseX = left + integerDivide(size * 7, 32);
+    const houseY = top + integerDivide(size * 3, 64);
+    const houseWidth = integerDivide(size, 6);
+    const houseHeight = integerDivide(size, 16);
+    const roof = integerDivide(size, 32);
+    const roofHeight = integerDivide(roof * 3, 2);
+    const houseQuarter = integerDivide(houseHeight, 4);
+    const houseHalf = integerDivide(houseHeight, 2);
     context.fillStyle = COLORS.radioGrey;
     context.fillRect(houseX, houseY, houseWidth, houseHeight);
     this.fillPolygon([
       [houseX - roof, houseY],
       [houseX + houseWidth + roof, houseY],
-      [houseX + houseWidth, houseY - roof * 1.5],
-      [houseX, houseY - roof * 1.5]
+      [houseX + houseWidth, houseY - roofHeight],
+      [houseX, houseY - roofHeight]
     ], COLORS.darkGrey);
     context.fillStyle = tower;
-    context.fillRect(houseX + houseWidth - 2 * roof, houseY + houseHeight / 4, roof, houseHeight * 3 / 4);
+    context.fillRect(
+      houseX + houseWidth - 2 * roof,
+      houseY + houseQuarter,
+      roof,
+      houseHeight - houseQuarter
+    );
     context.fillStyle = COLORS.black;
-    context.fillRect(houseX + roof, houseY + houseHeight / 4, roof, houseHeight / 4);
-    this.drawOctagon(left + size / 2 - size / 10, top - size * 3 / 4 - size / 10, size / 5, artifact.color);
+    context.fillRect(houseX + roof, houseY + houseQuarter, roof, houseHalf - houseQuarter);
+    this.drawOctagon(
+      left + size - half - tenth,
+      top - threeQuarters - tenth,
+      integerDivide(size, 5),
+      artifact.color
+    );
     context.restore();
   }
 

@@ -212,6 +212,7 @@ test("minimap maps world coordinates and blinks the ship on the source cadence",
   assert.deepEqual(game.mapToMinimap(0, 0), { x: 0, y: 0 });
   assert.deepEqual(game.mapToMinimap(10_000, 5_000), { x: 50, y: 25 });
   assert.deepEqual(game.mapToMinimap(19_999, 12_345), { x: 100, y: 61.73 });
+  assert.deepEqual(game.mapToMinimap(-1, -12_345), { x: -0.01, y: -61.73 });
 
   for (let frame = 0; frame < 60; frame += 1) game.updateMinimap(1);
   assert.equal(game.minimap.showShip, true);

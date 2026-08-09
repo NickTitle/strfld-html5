@@ -21,7 +21,8 @@ function clamp(value, min, max) {
 }
 
 function roundToHundredth(value) {
-  return Math.round((value + Number.EPSILON * Math.abs(value)) * 100) / 100;
+  const magnitude = Math.abs(value);
+  return Math.sign(value) * Math.round((magnitude + Number.EPSILON * magnitude) * 100) / 100;
 }
 
 export class Game {
