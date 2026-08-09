@@ -16,7 +16,7 @@ ported; **verify** means final parity requires automated and browser evidence.
 | Logical display | 640×480, scaled into a 1200×900 window | **foundation**: responsive 640×480 Canvas |
 | Main loop | Gosu update/draw loop | **foundation**: deterministic fixed 60 Hz update with independent render scheduling |
 | State 0 | Black fades away one alpha unit per update; title ship flies at 52°; Space starts only after fade reaches zero | **foundation** |
-| State 1 | Normal flight, artifacts, HUD, story, radio | **foundation** through the complete 61-entry story, orbit, and shutdown gates; sonar/particles pending |
+| State 1 | Normal flight, artifacts, HUD, story, radio | **foundation** through the complete 61-entry story, orbit, shutdown gates, sonar, and gameplay particles |
 | State 2 | Story completion fades to black by 0.5 alpha/update | **pending** |
 | State 3 | Black pause; finale audio begins; 25-second delay | **pending** |
 | State 4 | Two-ship finale fades in by 0.3 alpha/update | **pending** |
@@ -94,17 +94,18 @@ shutdown lifecycle/audio, and story integration.
   alpha 255, speed 5, and the bearing toward the weaker of the first two
   in-range artifacts selected by the original radio logic. Per update
   width grows 0.5, alpha falls 5, speed damps by 0.97, and travel advances by
-  current speed. Draw angle adds a fresh random ±30° spread. The burst cadence
-  is intended to vary from 20 to 200 updates based on signal volume.
+  current speed. Draw angle adds a fresh random ±30° spread. Because the Ruby
+  expression is evaluated as `180 - broadcast_volume + 20`, the shipped burst
+  cadence is approximately 199–200 updates rather than the apparent intended
+  20–200 range; that executed behavior is preserved.
 - The 100×100 minimap sits at (10,10) with a two-pixel frame. It maps absolute
   world coordinates linearly, blinks the 3×3 player marker every 60 updates,
   and shows only that weaker selected tuned artifact.
 
 Current status: **foundation** exact minimap frame, world mapping, asymmetric
-marker offsets, weaker-signal visibility, and 61-update player blink;
-**pending** sonar implementation and deterministic replacement for draw-time
-randomness. Final verification must cover bearing, spread, cadence, and draw
-order.
+marker offsets, weaker-signal visibility, 61-update player blink, ten-bar sonar
+lifecycle/bearing/cadence, and a fixed-update deterministic replacement for
+draw-time spread randomness.
 
 ## Particles, parallax, and rendering
 
@@ -117,7 +118,8 @@ order.
   and artifacts but below the HUD.
 - The ship has 200 primary engine particles and 100 secondary particles. Color
   advances white → yellow → orange → red over lifetime. Strength follows
-  engine volume in gameplay and stays full for title/finale scenes.
+  engine volume in gameplay. The original title leaves its initially transparent
+  particles unadvanced; finale state 4 resets both banks at full strength.
 - Ship one is the orange patched craft drawn at screen center. The finale draws
   it translated +25,+25 and a peach second ship translated −25,−25. The
   original shares particle origins; visual parity review must decide whether
@@ -128,8 +130,9 @@ order.
   widths/heights update; draw uses radial distance less than 1.5×640.
 
 Current status: **foundation** deterministic star count/generation, depth-scaled
-motion/wrap, background, representative ship, original star/artifact/HUD layer
-order, and artifact geometry; **pending** particles, sonar, and finale ship.
+motion/wrap, background, representative ship, original star/artifact/sonar/
+primary-particle/ship/HUD layer order, artifact geometry, and both gameplay
+particle-bank lifecycles; **pending** secondary-particle/finale ship rendering.
 
 ## Finale
 

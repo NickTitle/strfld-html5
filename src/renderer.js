@@ -26,7 +26,7 @@ export class CanvasRenderer {
         }
       }
     }
-    this.drawShip(game.ship);
+    this.drawShipSystems(game);
     for (const star of game.stars) {
       if (star.z > 1.75) this.drawStar(star);
     }
@@ -70,6 +70,46 @@ export class CanvasRenderer {
     context.fillRect(-star.size / 2 - 1, -star.size / 2 - 1, star.size + 2, star.size + 2);
     context.fillStyle = star.color;
     context.fillRect(-star.size / 2, -star.size / 2, star.size, star.size);
+    context.restore();
+  }
+
+  drawShipSystems(game) {
+    if (game.radio.showSonar) {
+      for (const bar of game.sonar.bars) this.drawSonarBar(bar);
+    }
+    for (const particle of game.particles) this.drawParticle(particle);
+    this.drawShip(game.ship);
+  }
+
+  drawSonarBar(bar) {
+    if (bar.alpha < 0.05) return;
+    const context = this.context;
+    context.save();
+    context.translate(VIEW_WIDTH / 2, VIEW_HEIGHT / 2 + 5);
+    context.rotate(bar.drawAngle * Math.PI / 180);
+    context.fillStyle = `rgba(99, 173, 208, ${Math.round(bar.alpha) / 255})`;
+    context.fillRect(
+      bar.x - VIEW_WIDTH / 2 - bar.width / 2,
+      bar.y - (VIEW_HEIGHT / 2 + 5),
+      bar.width,
+      4
+    );
+    context.restore();
+  }
+
+  drawParticle(particle) {
+    const context = this.context;
+    const halfSize = integerDivide(particle.size, 2);
+    context.save();
+    context.translate(VIEW_WIDTH / 2, VIEW_HEIGHT / 2 + 5);
+    context.rotate(particle.angle * Math.PI / 180);
+    context.fillStyle = particle.color;
+    context.fillRect(
+      particle.x - VIEW_WIDTH / 2 - halfSize,
+      particle.y - (VIEW_HEIGHT / 2 + 5) - halfSize,
+      halfSize * 2,
+      halfSize * 2
+    );
     context.restore();
   }
 

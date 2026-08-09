@@ -1,4 +1,4 @@
-import { VIEW_HEIGHT, VIEW_WIDTH, WORLD_SIZE } from "./constants.js";
+import { COLORS, VIEW_HEIGHT, VIEW_WIDTH, WORLD_SIZE } from "./constants.js";
 import { EMPTY_INPUT } from "./input.js";
 import { SeededRandom } from "./random.js";
 import { ARTIFACT_CUES, RADIO_CUES, STORY } from "./story.js";
@@ -13,6 +13,11 @@ const BROADCAST_RANGE = 8;
 const ARTIFACT_DRAW_DISTANCE = VIEW_WIDTH * 1.5;
 const MINIMAP_SIZE = 100;
 const STORY_DEBOUNCE_SECONDS = 1;
+const PARTICLE_COUNT = 200;
+const SECONDARY_PARTICLE_COUNT = 100;
+const SONAR_BAR_COUNT = 10;
+const SHIP_ORIGIN_X = VIEW_WIDTH / 2;
+const SHIP_ORIGIN_Y = VIEW_HEIGHT / 2 + 5;
 
 function frameFactor(seconds) {
   return seconds * 60;
@@ -51,6 +56,13 @@ export class Game {
       angle: 0,
       engineVolume: 0
     };
+    this.particles = Array.from({ length: PARTICLE_COUNT }, () => this.createParticle());
+    this.secondaryParticles = Array.from({ length: SECONDARY_PARTICLE_COUNT }, () => this.createParticle());
+    this.sonar = {
+      countdown: 0,
+      countdownMax: 60,
+      bars: Array.from({ length: SONAR_BAR_COUNT }, () => this.createSonarBar())
+    };
     this.stars = Array.from({ length: STAR_COUNT }, () => this.createStar());
     this.artifacts = Array.from({ length: ARTIFACT_COUNT }, (_, index) => this.createArtifact(index));
     this.radio = {
@@ -77,6 +89,34 @@ export class Game {
     };
     this.randomizeStarColor(star);
     return star;
+  }
+
+  createParticle() {
+    return {
+      x: SHIP_ORIGIN_X,
+      y: SHIP_ORIGIN_Y,
+      xVelocity: this.random.next() * 3 - 0.5,
+      yVelocity: this.random.integer(3) + 1,
+      size: this.random.integer(3) + 1,
+      cycles: 0,
+      maxCycles: 1,
+      yScalar: 0.2,
+      color: COLORS.transparent,
+      angle: 0
+    };
+  }
+
+  createSonarBar() {
+    return {
+      x: SHIP_ORIGIN_X,
+      y: SHIP_ORIGIN_Y,
+      width: 2,
+      alpha: 0,
+      speed: 5,
+      angle: 0,
+      nextAngle: 0,
+      drawAngle: 90
+    };
   }
 
   randomizeStarAppearance(star) {
@@ -138,6 +178,7 @@ export class Game {
         this.startStory();
         this.updatePlaying(frames, EMPTY_INPUT);
         this.updateArtifacts(frames);
+        this.updateSonar(frames);
         this.ship.x += this.ship.vx * frames;
         this.ship.y += this.ship.vy * frames;
         this.updateStars(frames);
@@ -163,6 +204,7 @@ export class Game {
 
     this.updatePlaying(frames, input);
     this.updateArtifacts(frames);
+    this.updateSonar(frames);
     this.ship.x += this.ship.vx * frames;
     this.ship.y += this.ship.vy * frames;
     this.updateStars(frames);
@@ -214,6 +256,63 @@ export class Game {
         if (Math.abs(this.ship.vy) > 0.05) this.ship.vy *= damping;
         this.ship.angle = (this.ship.angle + (this.ship.vy > 0 ? -0.1 : 0.1) * frames + 360) % 360;
       }
+    }
+    this.updateParticles(frames, input.thrust, false);
+  }
+
+  updateParticles(frames, thrust, fullStrength) {
+    for (const particle of [...this.particles, ...this.secondaryParticles]) {
+      particle.x += particle.xVelocity * frames;
+      particle.xVelocity *= 0.9 ** frames;
+      particle.y += particle.yVelocity * frames;
+      particle.cycles += frames;
+
+      const ratio = particle.cycles / particle.maxCycles;
+      if (ratio <= 0.2) particle.color = COLORS.white;
+      else if (ratio <= 0.4) particle.color = COLORS.yellow;
+      else if (ratio < 0.7) particle.color = COLORS.orange;
+      else particle.color = COLORS.red;
+
+      if (particle.cycles >= particle.maxCycles) {
+        if (fullStrength) particle.yScalar = 1;
+        else if (thrust) particle.yScalar = this.ship.engineVolume;
+        else particle.yScalar = Math.max(particle.yScalar * 0.7, 0.2);
+
+        particle.x = SHIP_ORIGIN_X;
+        particle.y = SHIP_ORIGIN_Y;
+        particle.xVelocity = (this.random.integer(30) / 10 - 1.4) * particle.yScalar;
+        particle.yVelocity = this.random.integer(2) + 2 * particle.yScalar;
+        particle.cycles = 0;
+        particle.maxCycles = (this.random.integer(80) + 1) * particle.yScalar;
+        particle.angle = this.ship.angle;
+      }
+    }
+  }
+
+  updateSonar(frames) {
+    for (const bar of this.sonar.bars) {
+      bar.width += 0.5 * frames;
+      bar.alpha -= 5 * frames;
+      bar.speed *= 0.97 ** frames;
+      bar.y += bar.speed * frames;
+    }
+    this.sonar.countdown -= frames;
+    if (this.sonar.countdown <= 0) {
+      for (const bar of this.sonar.bars) {
+        bar.x = SHIP_ORIGIN_X;
+        bar.y = SHIP_ORIGIN_Y;
+        bar.width = 2;
+        bar.alpha = 255;
+        bar.speed = 5;
+        bar.angle = bar.nextAngle;
+      }
+      this.sonar.countdown = this.sonar.countdownMax;
+    }
+  }
+
+  refreshSonarDrawAngles() {
+    for (const bar of this.sonar.bars) {
+      if (bar.alpha >= 0.05) bar.drawAngle = bar.angle + this.random.integer(60) - 30 + 90;
     }
   }
 
@@ -411,6 +510,8 @@ export class Game {
           this.ship.y - signal.artifact.y,
           this.ship.x - signal.artifact.x
         ) * 180 / Math.PI;
+        for (const bar of this.sonar.bars) bar.nextAngle = this.radio.sonarBearing;
+        this.sonar.countdownMax = 200 - volume;
         if (signal.distance < VIEW_HEIGHT / 2 && signal.distance < VIEW_WIDTH / 2) {
           this.radio.activeArtifact = signal.artifact;
           this.radio.staticVolume = 0;
@@ -422,6 +523,7 @@ export class Game {
           this.radio.staticVolume = (1 - volume) * 0.75;
           if (!(this.story.started && this.story.paused)) this.radio.activeArtifact = null;
         }
+        this.refreshSonarDrawAngles();
       }
     }
     this.updateRadioAudio();
@@ -442,6 +544,9 @@ export const PHYSICS = Object.freeze({
   maxSpeed: MAX_SPEED,
   starCount: STAR_COUNT,
   artifactCount: ARTIFACT_COUNT,
+  particleCount: PARTICLE_COUNT,
+  secondaryParticleCount: SECONDARY_PARTICLE_COUNT,
+  sonarBarCount: SONAR_BAR_COUNT,
   broadcastRange: BROADCAST_RANGE,
   artifactDrawDistance: ARTIFACT_DRAW_DISTANCE,
   minimapSize: MINIMAP_SIZE

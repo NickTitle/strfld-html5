@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { FIXED_STEP_SECONDS } from "../src/constants.js";
+import { COLORS, FIXED_STEP_SECONDS } from "../src/constants.js";
 import { Game, PHYSICS } from "../src/game.js";
 import { EMPTY_INPUT } from "../src/input.js";
 import { ARTIFACT_CUES, RADIO_CUES, STORY } from "../src/story.js";
@@ -39,8 +39,14 @@ test("initial state preserves original world and star configuration", () => {
   assert.equal(game.state, "title");
   assert.equal(game.stars.length, 150);
   assert.equal(game.artifacts.length, 11);
+  assert.equal(game.particles.length, 200);
+  assert.equal(game.secondaryParticles.length, 100);
+  assert.equal(game.sonar.bars.length, 10);
   assert.equal(PHYSICS.starCount, 150);
   assert.equal(PHYSICS.artifactCount, 11);
+  assert.equal(PHYSICS.particleCount, 200);
+  assert.equal(PHYSICS.secondaryParticleCount, 100);
+  assert.equal(PHYSICS.sonarBarCount, 10);
   assert.ok(game.ship.x >= 10_000 && game.ship.x < 10_100);
   assert.ok(game.ship.y >= 10_000 && game.ship.y < 10_100);
   assert.deepEqual(game.artifacts.map((artifact) => artifact.song), [2, 3, 4, 5, 6, 7, 8, 9, 10, 1, 2]);
@@ -66,12 +72,14 @@ test("title fly-by changes velocity and stars without moving world position", ()
   const start = { x: game.ship.x, y: game.ship.y };
   const star = game.stars[0];
   const starStart = { x: star.x, y: star.y };
+  const particleStart = structuredClone(game.particles[0]);
 
   game.update(FIXED_STEP_SECONDS, EMPTY_INPUT);
   assert.deepEqual({ x: game.ship.x, y: game.ship.y }, start);
   assert.deepEqual({ x: star.x, y: star.y }, starStart);
   assert.notEqual(game.ship.vx, 0);
   assert.notEqual(game.ship.vy, 0);
+  assert.deepEqual(game.particles[0], particleStart);
 
   game.update(FIXED_STEP_SECONDS, EMPTY_INPUT);
   assert.deepEqual({ x: game.ship.x, y: game.ship.y }, start);
@@ -168,6 +176,82 @@ test("radio preserves original first-two and weaker-signal precedence", () => {
   assert.ok(Math.abs(first.broadcastVolume - 0.1905) < 1e-12);
   assert.ok(Math.abs(game.radio.staticVolume - 0.3084375) < 1e-12);
   assert.equal(game.radio.sonarBearing, 180);
+  assert.ok(game.sonar.bars.every((bar) => bar.nextAngle === 180));
+  assert.ok(Math.abs(game.sonar.countdownMax - (200 - 0.58875)) < 1e-12);
+  assert.ok(game.sonar.bars.every((bar) => bar.drawAngle >= 60 && bar.drawAngle <= 119));
+});
+
+test("sonar resets on the source cadence and preserves damped bar motion", () => {
+  const game = new Game({ seed: 17 });
+  const bar = game.sonar.bars[0];
+  bar.nextAngle = -45;
+
+  game.updateSonar(1);
+  assert.deepEqual(
+    { x: bar.x, y: bar.y, width: bar.width, alpha: bar.alpha, speed: bar.speed, angle: bar.angle },
+    { x: 320, y: 245, width: 2, alpha: 255, speed: 5, angle: -45 }
+  );
+  assert.equal(game.sonar.countdown, 60);
+
+  game.updateSonar(1);
+  assert.ok(Math.abs(bar.y - 249.85) < 1e-12);
+  assert.equal(bar.width, 2.5);
+  assert.equal(bar.alpha, 250);
+  assert.equal(bar.speed, 4.85);
+  assert.equal(game.sonar.countdown, 59);
+
+  game.sonar.countdown = 1;
+  game.sonar.countdownMax = 199.25;
+  bar.nextAngle = 123;
+  game.updateSonar(1);
+  assert.equal(bar.angle, 123);
+  assert.equal(game.sonar.countdown, 199.25);
+});
+
+test("both particle banks follow source lifecycle while only thrust controls strength", () => {
+  const game = new Game({ seed: 18 });
+  assert.equal(game.particles.every((particle) => particle.color === COLORS.transparent), true);
+  assert.equal(game.secondaryParticles.every((particle) => particle.color === COLORS.transparent), true);
+
+  const particle = game.particles[0];
+  game.particles = [particle];
+  game.secondaryParticles = [];
+  Object.assign(particle, {
+    x: 320,
+    y: 245,
+    xVelocity: 2,
+    yVelocity: 3,
+    cycles: 0,
+    maxCycles: 100,
+    yScalar: 0.5
+  });
+
+  game.updateParticles(20, false, false);
+  assert.equal(particle.x, 360);
+  assert.equal(particle.y, 305);
+  assert.ok(Math.abs(particle.xVelocity - 2 * 0.9 ** 20) < 1e-12);
+  assert.equal(particle.cycles, 20);
+  assert.equal(particle.color, COLORS.white);
+  game.updateParticles(20, false, false);
+  assert.equal(particle.color, COLORS.yellow);
+  game.updateParticles(20, false, false);
+  assert.equal(particle.color, COLORS.orange);
+
+  Object.assign(particle, { cycles: 0, maxCycles: 1, yScalar: 0.5 });
+  game.ship.engineVolume = 0.4;
+  game.ship.angle = 37;
+  game.updateParticles(1, true, false);
+  assert.equal(particle.yScalar, 0.4);
+  assert.equal(particle.x, 320);
+  assert.equal(particle.y, 245);
+  assert.equal(particle.cycles, 0);
+  assert.equal(particle.angle, 37);
+  assert.ok(particle.maxCycles >= 0.4 && particle.maxCycles <= 32);
+
+  particle.maxCycles = 1;
+  particle.yScalar = 0.21;
+  game.updateParticles(1, false, false);
+  assert.equal(particle.yScalar, 0.2);
 });
 
 test("radio off, static, proximity, and turned-off behavior match source", () => {
@@ -177,6 +261,7 @@ test("radio off, static, proximity, and turned-off behavior match source", () =>
   artifact.frequency = 50;
   artifact.x = game.ship.x + 100;
   artifact.y = game.ship.y;
+  for (const other of game.artifacts.slice(1)) other.frequency = 200;
 
   game.radioOffset = 50;
   game.updateRadio();

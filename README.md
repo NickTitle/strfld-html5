@@ -7,7 +7,8 @@ This is an in-progress preservation port. The current milestones establish the
 static browser shell, deterministic 60 Hz simulation, original ship controls,
 radio dial and signal mixing, 11 seeded artifacts, parallax starfield, lazy
 browser audio, source-shaped artifact towers and minimap, the complete story
-gate inventory, tower orbit, shutdown lifecycle, and automated tests.
+gate inventory, tower orbit, shutdown lifecycle, sonar bursts, gameplay engine
+particles, and automated tests.
 The source-traced parity plan is in
 [`PARITY.md`](./PARITY.md).
 

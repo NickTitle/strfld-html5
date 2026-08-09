@@ -47,6 +47,10 @@ test("renderer preserves star, artifact, ship, star, HUD order and minimap offse
   game.ship.x = 10_000;
   game.ship.y = 10_000;
   game.minimap.showShip = true;
+  game.radio.showSonar = true;
+  game.sonar.bars = [{ x: 320, y: 250, width: 3, alpha: 128, drawAngle: 100 }];
+  game.particles = [{ x: 321, y: 247, size: 2, angle: 10, color: "particle-color" }];
+  game.secondaryParticles = [{ x: 320, y: 245, size: 2, angle: 0, color: "secondary-particle" }];
   game.artifacts = [{
     x: 10_100,
     y: 10_000,
@@ -62,7 +66,11 @@ test("renderer preserves star, artifact, ship, star, HUD order and minimap offse
 
   const indexOf = (color) => context.operations.findIndex((operation) => operation.color === color);
   assert.ok(indexOf("shallow-star") < indexOf("artifact-color"));
-  assert.ok(indexOf("artifact-color") < indexOf(COLORS.shipOrange));
+  const sonarColor = `rgba(99, 173, 208, ${Math.round(128) / 255})`;
+  assert.ok(indexOf("artifact-color") < indexOf(sonarColor));
+  assert.ok(indexOf(sonarColor) < indexOf("particle-color"));
+  assert.ok(indexOf("particle-color") < indexOf(COLORS.shipOrange));
+  assert.equal(indexOf("secondary-particle"), -1);
   assert.ok(indexOf(COLORS.shipOrange) < indexOf("deep-star"));
   assert.ok(indexOf("deep-star") < indexOf(COLORS.grillGrey));
 
@@ -78,6 +86,22 @@ test("renderer preserves star, artifact, ship, star, HUD order and minimap offse
   assert.deepEqual(artifactMarker, {
     type: "fillRect", color: "artifact-color", x: 60.5, y: 60, width: 3, height: 3
   });
+  assert.ok(context.operations.some((operation) =>
+    operation.type === "fillRect"
+      && operation.color === sonarColor
+      && operation.x === -1.5
+      && operation.y === 5
+      && operation.width === 3
+      && operation.height === 4
+  ));
+  assert.ok(context.operations.some((operation) =>
+    operation.type === "fillRect"
+      && operation.color === "particle-color"
+      && operation.x === 0
+      && operation.y === 1
+      && operation.width === 2
+      && operation.height === 2
+  ));
 });
 
 test("artifact geometry preserves Ruby integer division for odd sizes", () => {
@@ -143,4 +167,20 @@ test("renderer enforces strict artifact radius and flicker suppression", () => {
   assert.equal(context.operations.some((operation) => operation.color === "at-boundary"), false);
   assert.equal(context.operations.some((operation) => operation.color === "flicker-hidden"), false);
   assert.equal(context.operations.some((operation) => operation.color === "inside"), true);
+});
+
+test("particle geometry preserves Ruby integer division for odd sizes", () => {
+  const context = recordingContext();
+  const renderer = new CanvasRenderer({ getContext: () => context });
+
+  renderer.drawParticle({ x: 320, y: 245, size: 3, angle: 0, color: "particle" });
+
+  assert.ok(context.operations.some((operation) =>
+    operation.type === "fillRect"
+      && operation.color === "particle"
+      && operation.x === -1
+      && operation.y === -1
+      && operation.width === 2
+      && operation.height === 2
+  ));
 });
