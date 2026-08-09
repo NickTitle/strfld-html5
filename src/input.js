@@ -38,7 +38,8 @@ export class KeyboardInput {
       thrust: this.down.has("ArrowUp"),
       tuneDown: this.down.has("Comma"),
       tuneUp: this.down.has("Period"),
-      advance: this.pressed.has("Space")
+      advance: this.pressed.has("Space"),
+      advanceHeld: this.down.has("Space")
     });
     this.pressed.clear();
     return state;
@@ -51,5 +52,6 @@ export const EMPTY_INPUT = Object.freeze({
   thrust: false,
   tuneDown: false,
   tuneUp: false,
-  advance: false
+  advance: false,
+  advanceHeld: false
 });

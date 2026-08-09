@@ -12,6 +12,7 @@ const ARTIFACT_COUNT = 11;
 const BROADCAST_RANGE = 8;
 const ARTIFACT_DRAW_DISTANCE = VIEW_WIDTH * 1.5;
 const MINIMAP_SIZE = 100;
+const STORY_DEBOUNCE_SECONDS = 1;
 
 function frameFactor(seconds) {
   return seconds * 60;
@@ -132,7 +133,7 @@ export class Game {
     this.elapsed += seconds;
 
     if (this.state === "title") {
-      if (this.titleFade === 0 && input.advance) {
+      if (this.titleFade === 0 && (input.advanceHeld || input.advance)) {
         this.state = "playing";
         this.startStory();
         this.updatePlaying(frames, EMPTY_INPUT);
@@ -173,8 +174,9 @@ export class Game {
   updatePlaying(frames, input) {
     const pausedForStory = this.story.started && this.story.paused;
     const storyIndexAtStart = this.story.index;
+    const advanceHeld = input.advanceHeld || input.advance;
 
-    if (pausedForStory && input.advance) {
+    if (pausedForStory && advanceHeld) {
       if (ARTIFACT_CUES.has(storyIndexAtStart)) {
         if (this.canAdvanceStory() && this.radio.activeArtifact) {
           this.radio.activeArtifact.found = true;
@@ -182,7 +184,7 @@ export class Game {
       } else if (storyIndexAtStart !== 3) {
         this.advanceStory();
       }
-    } else if (!pausedForStory && input.advance && this.radio.activeArtifact) {
+    } else if (!pausedForStory && advanceHeld && this.radio.activeArtifact) {
       this.radio.activeArtifact.found = true;
     }
 
@@ -255,7 +257,7 @@ export class Game {
   }
 
   canAdvanceStory() {
-    return this.elapsed - this.story.lastAdvanceAt >= 1;
+    return this.elapsed - this.story.lastAdvanceAt >= STORY_DEBOUNCE_SECONDS - 1e-12;
   }
 
   advanceStory() {
