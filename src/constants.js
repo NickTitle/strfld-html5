@@ -10,7 +10,10 @@ export const COLORS = Object.freeze({
   starBorder: "rgba(0, 0, 0, 0.33)",
   black: "#000000",
   darkGrey: "#3e3e3e",
+  radioGrey: "#8e8e8e",
+  grillGrey: "#ebebeb",
   frameBlue: "#3885d1",
+  dialOrange: "#ff7735",
   shipOrange: "#e98820",
   patchBrown: "#322611",
   patchGreen: "#2d940a"

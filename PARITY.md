@@ -84,7 +84,8 @@ place; **pending** full story machine and one-second gate timing.
 Current status: **foundation** dial bounds, input, power transition, deterministic
 11-artifact generation, original first-two/weaker-signal selection, static and
 broadcast mixing, proximity targeting, and lazy per-artifact audio loops;
-**pending** tower rendering, orbit, shutdown, and story integration.
+**foundation** nearby artifact update/draw gates and full tower geometry;
+**pending** orbit, shutdown, and story integration.
 
 ## Sonar and minimap
 
@@ -98,9 +99,11 @@ broadcast mixing, proximity targeting, and lazy per-artifact audio loops;
   world coordinates linearly, blinks the 3×3 player marker every 60 updates,
   and shows only that weaker selected tuned artifact.
 
-Current status: **pending** implementation and deterministic replacement for
-draw-time sonar randomness; final verification must cover bearing, spread,
-cadence, map scaling, visibility, and draw order.
+Current status: **foundation** exact minimap frame, world mapping, asymmetric
+marker offsets, weaker-signal visibility, and 61-update player blink;
+**pending** sonar implementation and deterministic replacement for draw-time
+randomness. Final verification must cover bearing, spread, cadence, and draw
+order.
 
 ## Particles, parallax, and rendering
 
@@ -124,8 +127,8 @@ cadence, map scaling, visibility, and draw order.
   widths/heights update; draw uses radial distance less than 1.5×640.
 
 Current status: **foundation** deterministic star count/generation, depth-scaled
-motion/wrap, background, and representative ship; **pending** exact layered
-geometry, color rarity, particles, artifacts, sonar, and finale ship.
+motion/wrap, background, representative ship, original star/artifact/HUD layer
+order, and artifact geometry; **pending** particles, sonar, and finale ship.
 
 ## Finale
 

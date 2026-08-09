@@ -186,3 +186,37 @@ test("radio off, static, proximity, and turned-off behavior match source", () =>
   assert.equal(game.radio.showSonar, false);
   assert.equal(game.radio.activeArtifact, null);
 });
+
+test("artifact update and draw gates preserve the source rectangle and radius", () => {
+  const game = new Game({ seed: 9 });
+  game.state = "playing";
+  const [inside, xEdge, yEdge] = game.artifacts;
+  Object.assign(inside, { x: game.ship.x + 959, y: game.ship.y + 719, rotation: 10 });
+  Object.assign(xEdge, { x: game.ship.x + 960, y: game.ship.y, rotation: 20 });
+  Object.assign(yEdge, { x: game.ship.x, y: game.ship.y + 720, rotation: 30 });
+
+  game.updateArtifacts(1);
+
+  assert.equal(inside.shouldDraw, true);
+  assert.ok(Math.abs(inside.rotation - 9.985) < 1e-12);
+  assert.equal(xEdge.shouldDraw, false);
+  assert.equal(xEdge.rotation, 20);
+  assert.equal(yEdge.shouldDraw, false);
+  assert.equal(yEdge.rotation, 30);
+  assert.ok(Math.hypot(inside.x - game.ship.x, inside.y - game.ship.y) > PHYSICS.artifactDrawDistance);
+  assert.ok(Math.hypot(xEdge.x - game.ship.x, xEdge.y - game.ship.y) === PHYSICS.artifactDrawDistance);
+});
+
+test("minimap maps world coordinates and blinks the ship on the source cadence", () => {
+  const game = new Game({ seed: 10 });
+  assert.deepEqual(game.mapToMinimap(0, 0), { x: 0, y: 0 });
+  assert.deepEqual(game.mapToMinimap(10_000, 5_000), { x: 50, y: 25 });
+  assert.deepEqual(game.mapToMinimap(19_999, 12_345), { x: 100, y: 61.73 });
+
+  for (let frame = 0; frame < 60; frame += 1) game.updateMinimap(1);
+  assert.equal(game.minimap.showShip, true);
+  assert.equal(game.minimap.cycle, 60);
+  game.updateMinimap(1);
+  assert.equal(game.minimap.showShip, false);
+  assert.equal(game.minimap.cycle, 0);
+});

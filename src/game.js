@@ -9,6 +9,8 @@ const ACTIVE_DAMPING_PER_FRAME = 0.993;
 const PASSIVE_DAMPING_PER_FRAME = 0.995;
 const ARTIFACT_COUNT = 11;
 const BROADCAST_RANGE = 8;
+const ARTIFACT_DRAW_DISTANCE = VIEW_WIDTH * 1.5;
+const MINIMAP_SIZE = 100;
 
 function frameFactor(seconds) {
   return seconds * 60;
@@ -16,6 +18,10 @@ function frameFactor(seconds) {
 
 function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
+}
+
+function roundToHundredth(value) {
+  return Math.round((value + Number.EPSILON * Math.abs(value)) * 100) / 100;
 }
 
 export class Game {
@@ -42,6 +48,10 @@ export class Game {
       showSonar: false,
       sonarBearing: 0,
       staticVolume: 0
+    };
+    this.minimap = {
+      cycle: 0,
+      showShip: true
     };
   }
 
@@ -100,7 +110,9 @@ export class Game {
       broadcastVolume: 0,
       found: false,
       turnedOff: false,
-      visibleOnMap: false
+      visibleOnMap: false,
+      shouldDraw: false,
+      flickerDraw: true
     };
   }
 
@@ -112,9 +124,11 @@ export class Game {
       if (this.titleFade === 0 && input.advance) {
         this.state = "playing";
         this.updatePlaying(frames, EMPTY_INPUT);
+        this.updateArtifacts(frames);
         this.ship.x += this.ship.vx * frames;
         this.ship.y += this.ship.vy * frames;
         this.updateStars(frames);
+        this.updateMinimap(frames);
         this.updateRadio();
         this.audio?.setLoopVolume("engine", this.ship.engineVolume);
         return;
@@ -124,6 +138,8 @@ export class Game {
       if (Math.abs(this.ship.vx) > 0.05) this.ship.vx *= damping;
       if (Math.abs(this.ship.vy) > 0.05) this.ship.vy *= damping;
       this.updateStars(frames);
+      this.updateArtifacts(frames);
+      this.updateMinimap(frames);
       this.ship.angle = 52;
       this.applyThrust(frames);
       this.titleFade = Math.max(0, this.titleFade - frames / 255);
@@ -133,9 +149,11 @@ export class Game {
     }
 
     this.updatePlaying(frames, input);
+    this.updateArtifacts(frames);
     this.ship.x += this.ship.vx * frames;
     this.ship.y += this.ship.vy * frames;
     this.updateStars(frames);
+    this.updateMinimap(frames);
     this.updateRadio();
     this.audio?.setLoopVolume("engine", this.ship.engineVolume);
   }
@@ -198,6 +216,32 @@ export class Game {
         this.randomizeStarAppearance(star);
       }
     }
+  }
+
+  updateArtifacts(frames) {
+    for (const artifact of this.artifacts) {
+      artifact.shouldDraw = Math.abs(artifact.x - this.ship.x) < ARTIFACT_DRAW_DISTANCE
+        && Math.abs(artifact.y - this.ship.y) < VIEW_HEIGHT * 1.5;
+      if (artifact.shouldDraw) {
+        artifact.rotation = (artifact.rotation + 0.015 * artifact.rotationDirection * frames + 360) % 360;
+      }
+    }
+  }
+
+  updateMinimap(frames) {
+    if (this.minimap.cycle >= 60) {
+      this.minimap.showShip = !this.minimap.showShip;
+      this.minimap.cycle = 0;
+    } else {
+      this.minimap.cycle += frames;
+    }
+  }
+
+  mapToMinimap(x, y) {
+    return {
+      x: roundToHundredth(x / WORLD_SIZE * MINIMAP_SIZE),
+      y: roundToHundredth(y / WORLD_SIZE * MINIMAP_SIZE)
+    };
   }
 
   updateRadio() {
@@ -277,5 +321,7 @@ export const PHYSICS = Object.freeze({
   maxSpeed: MAX_SPEED,
   starCount: STAR_COUNT,
   artifactCount: ARTIFACT_COUNT,
-  broadcastRange: BROADCAST_RANGE
+  broadcastRange: BROADCAST_RANGE,
+  artifactDrawDistance: ARTIFACT_DRAW_DISTANCE,
+  minimapSize: MINIMAP_SIZE
 });
