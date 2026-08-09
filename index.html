@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#070b1b">
+    <title>Starfield</title>
+    <link rel="stylesheet" href="./styles.css">
+  </head>
+  <body>
+    <main class="game-shell">
+      <h1 class="visually-hidden">Starfield</h1>
+      <canvas
+        id="game"
+        width="640"
+        height="480"
+        aria-label="Starfield game canvas"
+        tabindex="0"
+      ></canvas>
+      <p id="instructions">
+        Arrow keys steer and thrust. Comma and period tune the radio. Space advances the story.
+      </p>
+    </main>
+    <script type="module" src="./src/main.js"></script>
+  </body>
+</html>
