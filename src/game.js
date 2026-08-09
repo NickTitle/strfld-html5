@@ -114,8 +114,7 @@ export class Game {
       alpha: 0,
       speed: 5,
       angle: 0,
-      nextAngle: 0,
-      drawAngle: 90
+      nextAngle: 0
     };
   }
 
@@ -307,12 +306,6 @@ export class Game {
         bar.angle = bar.nextAngle;
       }
       this.sonar.countdown = this.sonar.countdownMax;
-    }
-  }
-
-  refreshSonarDrawAngles() {
-    for (const bar of this.sonar.bars) {
-      if (bar.alpha >= 0.05) bar.drawAngle = bar.angle + this.random.integer(60) - 30 + 90;
     }
   }
 
@@ -523,7 +516,6 @@ export class Game {
           this.radio.staticVolume = (1 - volume) * 0.75;
           if (!(this.story.started && this.story.paused)) this.radio.activeArtifact = null;
         }
-        this.refreshSonarDrawAngles();
       }
     }
     this.updateRadioAudio();

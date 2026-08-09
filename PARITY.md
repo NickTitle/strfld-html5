@@ -104,8 +104,8 @@ shutdown lifecycle/audio, and story integration.
 
 Current status: **foundation** exact minimap frame, world mapping, asymmetric
 marker offsets, weaker-signal visibility, 61-update player blink, ten-bar sonar
-lifecycle/bearing/cadence, and a fixed-update deterministic replacement for
-draw-time spread randomness.
+lifecycle/bearing/cadence, and source-exact shared-RNG spread sampling once per
+visible bar draw.
 
 ## Particles, parallax, and rendering
 

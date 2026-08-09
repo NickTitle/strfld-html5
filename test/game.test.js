@@ -4,6 +4,7 @@ import test from "node:test";
 import { COLORS, FIXED_STEP_SECONDS } from "../src/constants.js";
 import { Game, PHYSICS } from "../src/game.js";
 import { EMPTY_INPUT } from "../src/input.js";
+import { SeededRandom } from "../src/random.js";
 import { ARTIFACT_CUES, RADIO_CUES, STORY } from "../src/story.js";
 
 function advance(game, frames, input = EMPTY_INPUT) {
@@ -178,7 +179,9 @@ test("radio preserves original first-two and weaker-signal precedence", () => {
   assert.equal(game.radio.sonarBearing, 180);
   assert.ok(game.sonar.bars.every((bar) => bar.nextAngle === 180));
   assert.ok(Math.abs(game.sonar.countdownMax - (200 - 0.58875)) < 1e-12);
-  assert.ok(game.sonar.bars.every((bar) => bar.drawAngle >= 60 && bar.drawAngle <= 119));
+  const randomState = game.random.state;
+  game.updateRadio();
+  assert.equal(game.random.state, randomState);
 });
 
 test("sonar resets on the source cadence and preserves damped bar motion", () => {
@@ -252,6 +255,43 @@ test("both particle banks follow source lifecycle while only thrust controls str
   particle.yScalar = 0.21;
   game.updateParticles(1, false, false);
   assert.equal(particle.yScalar, 0.2);
+});
+
+test("particle constructor banks and reset consume RNG in source order", () => {
+  const game = new Game({ seed: 18 });
+  assert.deepEqual(
+    [game.particles[0], game.particles[199], game.secondaryParticles[0], game.secondaryParticles[99]].map((particle) => ({
+      xVelocity: particle.xVelocity,
+      yVelocity: particle.yVelocity,
+      size: particle.size
+    })),
+    [
+      { xVelocity: 2.1293291454203427, yVelocity: 2, size: 1 },
+      { xVelocity: 1.089288176735863, yVelocity: 3, size: 2 },
+      { xVelocity: -0.43720478122122586, yVelocity: 3, size: 1 },
+      { xVelocity: 1.6271947431378067, yVelocity: 3, size: 1 }
+    ]
+  );
+
+  const particle = game.particles[0];
+  game.particles = [particle];
+  game.secondaryParticles = [];
+  Object.assign(particle, { cycles: 0, maxCycles: 1, yScalar: 0.5 });
+  game.ship.engineVolume = 0.4;
+  game.ship.angle = 27;
+  game.random.state = 0x12345678;
+  const expected = new SeededRandom(0x12345678);
+  const xVelocity = (expected.integer(30) / 10 - 1.4) * 0.4;
+  const yVelocity = expected.integer(2) + 0.8;
+  const maxCycles = (expected.integer(80) + 1) * 0.4;
+
+  game.updateParticles(1, true, false);
+
+  assert.deepEqual(
+    { xVelocity: particle.xVelocity, yVelocity: particle.yVelocity, maxCycles: particle.maxCycles, angle: particle.angle },
+    { xVelocity, yVelocity, maxCycles, angle: 27 }
+  );
+  assert.equal(game.random.state, expected.state);
 });
 
 test("radio off, static, proximity, and turned-off behavior match source", () => {

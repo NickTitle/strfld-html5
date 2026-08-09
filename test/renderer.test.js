@@ -3,6 +3,7 @@ import test from "node:test";
 
 import { COLORS } from "../src/constants.js";
 import { Game } from "../src/game.js";
+import { SeededRandom } from "../src/random.js";
 import { CanvasRenderer } from "../src/renderer.js";
 
 function recordingContext() {
@@ -48,7 +49,7 @@ test("renderer preserves star, artifact, ship, star, HUD order and minimap offse
   game.ship.y = 10_000;
   game.minimap.showShip = true;
   game.radio.showSonar = true;
-  game.sonar.bars = [{ x: 320, y: 250, width: 3, alpha: 128, drawAngle: 100 }];
+  game.sonar.bars = [{ x: 320, y: 250, width: 3, alpha: 128, angle: 10 }];
   game.particles = [{ x: 321, y: 247, size: 2, angle: 10, color: "particle-color" }];
   game.secondaryParticles = [{ x: 320, y: 245, size: 2, angle: 0, color: "secondary-particle" }];
   game.artifacts = [{
@@ -183,4 +184,33 @@ test("particle geometry preserves Ruby integer division for odd sizes", () => {
       && operation.width === 2
       && operation.height === 2
   ));
+});
+
+test("visible sonar consumes one shared-RNG spread sample per draw", () => {
+  const context = recordingContext();
+  const renderer = new CanvasRenderer({ getContext: () => context });
+  const game = new Game({ seed: 20 });
+  game.state = "playing";
+  game.titleFade = 0;
+  game.stars = [];
+  game.artifacts = [];
+  game.particles = [];
+  game.radio.showSonar = true;
+  game.sonar.bars = Array.from({ length: 10 }, () => ({
+    x: 320,
+    y: 250,
+    width: 3,
+    alpha: 128,
+    angle: 15
+  }));
+
+  const expected = new SeededRandom(1);
+  expected.state = game.random.state;
+  for (let index = 0; index < 10; index += 1) expected.integer(60);
+  renderer.draw(game);
+  assert.equal(game.random.state, expected.state);
+
+  for (let index = 0; index < 10; index += 1) expected.integer(60);
+  renderer.draw(game);
+  assert.equal(game.random.state, expected.state);
 });

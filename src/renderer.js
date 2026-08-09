@@ -75,18 +75,19 @@ export class CanvasRenderer {
 
   drawShipSystems(game) {
     if (game.radio.showSonar) {
-      for (const bar of game.sonar.bars) this.drawSonarBar(bar);
+      for (const bar of game.sonar.bars) this.drawSonarBar(bar, game.random);
     }
     for (const particle of game.particles) this.drawParticle(particle);
     this.drawShip(game.ship);
   }
 
-  drawSonarBar(bar) {
+  drawSonarBar(bar, random) {
     if (bar.alpha < 0.05) return;
     const context = this.context;
     context.save();
     context.translate(VIEW_WIDTH / 2, VIEW_HEIGHT / 2 + 5);
-    context.rotate(bar.drawAngle * Math.PI / 180);
+    const drawAngle = bar.angle + random.integer(60) - 30 + 90;
+    context.rotate(drawAngle * Math.PI / 180);
     context.fillStyle = `rgba(99, 173, 208, ${Math.round(bar.alpha) / 255})`;
     context.fillRect(
       bar.x - VIEW_WIDTH / 2 - bar.width / 2,
