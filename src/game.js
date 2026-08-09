@@ -18,6 +18,10 @@ const SECONDARY_PARTICLE_COUNT = 100;
 const SONAR_BAR_COUNT = 10;
 const SHIP_ORIGIN_X = VIEW_WIDTH / 2;
 const SHIP_ORIGIN_Y = VIEW_HEIGHT / 2 + 5;
+const FINALE_FADE_OUT_ALPHA_PER_FRAME = 0.5;
+const FINALE_FADE_IN_ALPHA_PER_FRAME = 0.3;
+const FINALE_REVEAL_DELAY_SECONDS = 25;
+const FINALE_BLACK_DELAY_SECONDS = 73;
 
 function frameFactor(seconds) {
   return seconds * 60;
@@ -33,9 +37,10 @@ function roundToHundredth(value) {
 }
 
 export class Game {
-  constructor({ seed = 0x2013, audio = null } = {}) {
+  constructor({ seed = 0x2013, audio = null, now = null } = {}) {
     this.random = new SeededRandom(seed);
     this.audio = audio;
+    this.now = now;
     this.state = "title";
     this.titleFade = 1;
     this.elapsed = 0;
@@ -47,6 +52,12 @@ export class Game {
       paused: true,
       lastAdvanceAt: 0,
       ending: false
+    };
+    this.finale = {
+      opacity: 0,
+      startedAt: null,
+      revealAt: null,
+      blackAt: null
     };
     this.ship = {
       x: WORLD_SIZE / 2 + this.random.integer(100),
@@ -201,15 +212,76 @@ export class Game {
       return;
     }
 
-    this.updatePlaying(frames, input);
-    this.updateArtifacts(frames);
-    this.updateSonar(frames);
-    this.ship.x += this.ship.vx * frames;
-    this.ship.y += this.ship.vy * frames;
+    if (this.state === "finale") {
+      this.updateFinaleFlight(frames);
+    } else {
+      const activeInput = this.state === "playing" || this.state === "fadeOut" ? input : EMPTY_INPUT;
+      this.updatePlaying(frames, activeInput);
+      this.updateArtifacts(frames);
+      this.updateSonar(frames);
+      this.ship.x += this.ship.vx * frames;
+      this.ship.y += this.ship.vy * frames;
+      this.updateStars(frames);
+      this.updateMinimap(frames);
+      this.updateRadio();
+    }
+    this.updateFinaleState(frames);
+    this.audio?.setLoopVolume("engine", this.ship.engineVolume);
+  }
+
+  updateFinaleFlight(frames) {
+    this.ship.engineVolume = this.ship.engineVolume > 0.05
+      ? this.ship.engineVolume * (0.95 ** frames)
+      : 0;
+    this.updateParticles(frames, false, true);
     this.updateStars(frames);
+    this.updateArtifacts(frames);
+    this.ship.angle = 52;
+    this.applyThrust(frames);
     this.updateMinimap(frames);
     this.updateRadio();
-    this.audio?.setLoopVolume("engine", this.ship.engineVolume);
+  }
+
+  updateFinaleState(frames) {
+    if (this.state === "fadeOut") {
+      if (this.finale.opacity < 1) {
+        const opacity = Math.min(
+          1,
+          this.finale.opacity + FINALE_FADE_OUT_ALPHA_PER_FRAME / 255 * frames
+        );
+        this.finale.opacity = opacity > 1 - 1e-12 ? 1 : opacity;
+        return;
+      }
+      this.story.paused = true;
+      this.state = "finalePause";
+      this.finale.startedAt = this.finaleTime();
+      this.finale.revealAt = this.finale.startedAt + FINALE_REVEAL_DELAY_SECONDS;
+      this.finale.blackAt = this.finale.startedAt + FINALE_BLACK_DELAY_SECONDS;
+      this.audio?.play("finale");
+      return;
+    }
+
+    if (this.state === "finalePause") {
+      if (this.finaleTime() >= this.finale.revealAt - 1e-12) this.state = "finale";
+      return;
+    }
+
+    if (this.state === "finale") {
+      if (this.finale.opacity > 0) {
+        const opacity = Math.max(
+          0,
+          this.finale.opacity - FINALE_FADE_IN_ALPHA_PER_FRAME / 255 * frames
+        );
+        this.finale.opacity = opacity < 1e-12 ? 0 : opacity;
+      } else if (this.finaleTime() > this.finale.blackAt) {
+        this.state = "ended";
+        this.finale.opacity = 1;
+      }
+    }
+  }
+
+  finaleTime() {
+    return this.now ? this.now() : this.elapsed;
   }
 
   updatePlaying(frames, input) {
@@ -541,5 +613,9 @@ export const PHYSICS = Object.freeze({
   sonarBarCount: SONAR_BAR_COUNT,
   broadcastRange: BROADCAST_RANGE,
   artifactDrawDistance: ARTIFACT_DRAW_DISTANCE,
-  minimapSize: MINIMAP_SIZE
+  minimapSize: MINIMAP_SIZE,
+  finaleFadeOutAlphaPerFrame: FINALE_FADE_OUT_ALPHA_PER_FRAME,
+  finaleFadeInAlphaPerFrame: FINALE_FADE_IN_ALPHA_PER_FRAME,
+  finaleRevealDelaySeconds: FINALE_REVEAL_DELAY_SECONDS,
+  finaleBlackDelaySeconds: FINALE_BLACK_DELAY_SECONDS
 });

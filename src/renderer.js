@@ -39,7 +39,7 @@ export class CanvasRenderer {
         context.font = "18px 'Starfield Pixel', monospace";
         context.fillText("Press SPACE to begin", 225, 190);
       }
-    } else {
+    } else if (game.state === "playing" || game.state === "fadeOut") {
       context.fillStyle = "rgba(255, 255, 255, 0.73)";
       context.fillRect(0, 460, VIEW_WIDTH, 20);
       context.fillStyle = COLORS.darkGrey;
@@ -55,8 +55,9 @@ export class CanvasRenderer {
       this.drawRadio(game.radioOffset);
     }
 
-    if (game.titleFade > 0) {
-      context.fillStyle = `rgba(0, 0, 0, ${game.titleFade})`;
+    const fadeOpacity = game.state === "title" ? game.titleFade : game.finale.opacity;
+    if (fadeOpacity > 0) {
+      context.fillStyle = `rgba(0, 0, 0, ${Math.round(fadeOpacity * 255) / 255})`;
       context.fillRect(0, 0, VIEW_WIDTH, VIEW_HEIGHT);
     }
   }
@@ -76,6 +77,20 @@ export class CanvasRenderer {
   drawShipSystems(game) {
     if (game.radio.showSonar) {
       for (const bar of game.sonar.bars) this.drawSonarBar(bar, game.random);
+    }
+    if (["finalePause", "finale", "ended"].includes(game.state)) {
+      this.context.save();
+      this.context.translate(25, 25);
+      for (const particle of game.particles) this.drawParticle(particle);
+      this.drawShip(game.ship);
+      this.context.restore();
+
+      this.context.save();
+      this.context.translate(-25, -25);
+      for (const particle of game.secondaryParticles) this.drawParticle(particle);
+      this.drawSecondShip(game.ship);
+      this.context.restore();
+      return;
     }
     for (const particle of game.particles) this.drawParticle(particle);
     this.drawShip(game.ship);
@@ -119,28 +134,40 @@ export class CanvasRenderer {
     context.save();
     context.translate(VIEW_WIDTH / 2, VIEW_HEIGHT / 2 + 5);
     context.rotate(ship.angle * Math.PI / 180);
-    context.fillStyle = COLORS.black;
-    context.beginPath();
-    context.moveTo(0, -25);
-    context.lineTo(-16, 20);
-    context.lineTo(0, 14);
-    context.lineTo(16, 20);
-    context.closePath();
-    context.fill();
-    context.fillStyle = COLORS.shipOrange;
-    context.beginPath();
-    context.moveTo(0, -22);
-    context.lineTo(-13, 17);
-    context.lineTo(0, 11);
-    context.lineTo(13, 17);
-    context.closePath();
-    context.fill();
-    context.fillStyle = COLORS.darkGrey;
-    context.fillRect(-5, -18, 10, 5);
-    context.fillStyle = COLORS.patchBrown;
-    context.fillRect(-12, 2, 4, 4);
-    context.fillStyle = COLORS.patchGreen;
-    context.fillRect(9, 6, 4, 5);
+    this.fillPolygon([[-6, -21], [-14, -13], [-16, 5], [-5, 0]], COLORS.black);
+    this.fillPolygon([[6, -21], [14, -13], [16, 5], [5, 0]], COLORS.black);
+    this.fillPolygon([[-6, -21], [6, -21], [5, 0], [-5, 0]], COLORS.black);
+    this.fillPolygon([[-6, -19], [-12, -12], [-14, 3], [-5, -2]], COLORS.shipOrange);
+    this.fillPolygon([[-6, -19], [6, -19], [5, -2], [-5, -2]], COLORS.shipOrange);
+    this.fillPolygon([[6, -19], [12, -12], [14, 3], [5, -2]], COLORS.shipOrange);
+    this.fillPolygon([[-7, -19], [7, -19], [4, -14], [-4, -14]], COLORS.black);
+    this.fillPolygon([[-6, -19], [6, -19], [4, -15], [-4, -15]], COLORS.darkGrey);
+    this.fillPolygon([[-13, -11], [-8, -10], [-8, -5], [-15, -5]], COLORS.black);
+    this.fillPolygon([[-12, -10], [-9, -9], [-9, -6], [-13, -6]], COLORS.patchBrown);
+    this.fillPolygon([[14, -7], [11, -6], [11, -1], [15, 1]], COLORS.black);
+    this.fillPolygon([[13, -6], [12, -5], [12, -2], [14, 0]], COLORS.patchGreen);
+    context.restore();
+  }
+
+  drawSecondShip(ship) {
+    const context = this.context;
+    context.save();
+    context.translate(VIEW_WIDTH / 2, VIEW_HEIGHT / 2 + 5);
+    context.rotate(ship.angle * Math.PI / 180);
+    this.fillPolygon([[-5, -20], [-3, -22], [3, -22], [5, -20]], COLORS.black);
+    this.fillPolygon([[-7, -12], [-5, -20], [5, -20], [7, -12]], COLORS.black);
+    this.fillPolygon([[-3, -22], [0, -27], [3, -22]], COLORS.black);
+    this.fillPolygon([[-3, -19], [0, -21], [0, -21], [3, -19]], COLORS.shipPeach);
+    this.fillPolygon([[-5, -14], [-3, -19], [3, -19], [5, -14]], COLORS.shipPeach);
+    this.fillPolygon([[-0.25, -21], [0, -26], [0.25, -21]], COLORS.white);
+    this.fillPolygon([[-6, -12], [-4, 3], [4, 3], [6, -12]], COLORS.black);
+    this.fillPolygon([[-5, -14], [-2, 1], [2, 1], [5, -14]], COLORS.shipPeach);
+    this.fillPolygon([[-5, -5], [-7, -2], [-7, 4], [-4, 0]], COLORS.black);
+    this.fillPolygon([[-3, -6], [-6, -2], [-6, 3], [-2, -2]], COLORS.shipPeach);
+    this.fillPolygon([[5, -5], [7, -2], [7, 4], [4, 0]], COLORS.black);
+    this.fillPolygon([[3, -6], [6, -2], [6, 3], [2, -2]], COLORS.shipPeach);
+    this.drawOctagon(-2, -17, 4, COLORS.black);
+    this.drawOctagon(-1, -16, 2, COLORS.darkGrey);
     context.restore();
   }
 

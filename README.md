@@ -8,7 +8,7 @@ static browser shell, deterministic 60 Hz simulation, original ship controls,
 radio dial and signal mixing, 11 seeded artifacts, parallax starfield, lazy
 browser audio, source-shaped artifact towers and minimap, the complete story
 gate inventory, tower orbit, shutdown lifecycle, sonar bursts, gameplay engine
-particles, and automated tests.
+particles, source-timed two-ship finale, and automated tests.
 The source-traced parity plan is in
 [`PARITY.md`](./PARITY.md).
 

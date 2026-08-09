@@ -19,6 +19,7 @@ export const COLORS = Object.freeze({
   frameBlue: "#3885d1",
   dialOrange: "#ff7735",
   shipOrange: "#e98820",
+  shipPeach: "#f5d04c",
   patchBrown: "#322611",
   patchGreen: "#2d940a"
 });

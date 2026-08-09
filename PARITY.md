@@ -17,10 +17,10 @@ ported; **verify** means final parity requires automated and browser evidence.
 | Main loop | Gosu update/draw loop | **foundation**: deterministic fixed 60 Hz update with independent render scheduling |
 | State 0 | Black fades away one alpha unit per update; title ship flies at 52°; Space starts only after fade reaches zero | **foundation** |
 | State 1 | Normal flight, artifacts, HUD, story, radio | **foundation** through the complete 61-entry story, orbit, shutdown gates, sonar, and gameplay particles |
-| State 2 | Story completion fades to black by 0.5 alpha/update | **pending** |
-| State 3 | Black pause; finale audio begins; 25-second delay | **pending** |
-| State 4 | Two-ship finale fades in by 0.3 alpha/update | **pending** |
-| State 5 | At 73 seconds from finale start, return to black | **pending** |
+| State 2 | Story completion fades to black by 0.5 alpha/update | **foundation** |
+| State 3 | Black pause; finale audio begins; 25-second delay | **foundation** with monotonic wall-clock deadline |
+| State 4 | Two-ship finale fades in by 0.3 alpha/update | **foundation** |
+| State 5 | At 73 seconds from finale start, return to black | **foundation** with strict post-deadline transition |
 | Deployment | Ruby 2.0 + Gosu from `app/`; no build artifact | **foundation**: static HTML/CSS/JS, no build/framework/server-side application runtime |
 
 ## Story gates and input
@@ -130,9 +130,10 @@ visible bar draw.
   widths/heights update; draw uses radial distance less than 1.5×640.
 
 Current status: **foundation** deterministic star count/generation, depth-scaled
-motion/wrap, background, representative ship, original star/artifact/sonar/
+motion/wrap, background, source-shaped primary ship, original star/artifact/sonar/
 primary-particle/ship/HUD layer order, artifact geometry, and both gameplay
-particle-bank lifecycles; **pending** secondary-particle/finale ship rendering.
+particle-bank lifecycles; **foundation** full source polygon geometry for both
+ships plus translated primary/secondary finale particle layering.
 
 ## Finale
 
@@ -142,10 +143,10 @@ starts `game_end.mp3`, schedules fade-in after 25 seconds and black after 73
 seconds. State 4 shows the two offset ships with continuous full-strength
 particles and fixed 52° heading while fading in. State 5 is black.
 
-Current status: **foundation** story state 60 hands off to the fade-out state;
-finale fade/audio timing remains pending. Final acceptance requires both
-deterministic timing coverage and a fresh title → 11 searches/shutdowns →
-finale browser run.
+Current status: **foundation** story state 60 handoff, source update-based fades,
+25/73-second monotonic deadlines, finale audio, fixed 52° flyby, two ships, and
+both particle banks. The sole remaining acceptance gap is a fresh title → 11
+searches/shutdowns → finale browser run.
 
 ## Audio and assets
 
@@ -153,7 +154,7 @@ finale browser run.
 |---|---|---|
 | Pixel font | `04B03.TTF` | **foundation**, copied unchanged |
 | Songs | `1.mp3`…`10.mp3` | **foundation**, copied unchanged; mixing pending |
-| Finale | `game_end.mp3` | **foundation**, copied unchanged; state timing pending |
+| Finale | `game_end.mp3` | **foundation**, copied unchanged with one-shot state-3 cue |
 | Effects | button, engine loop/on/off/slow, found, static, three typing variants | **foundation**, copied unchanged; full cues/mix pending |
 
 Browser audio must remain locked until a user gesture, then preserve looping,

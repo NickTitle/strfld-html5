@@ -483,4 +483,88 @@ test("the final radio-off story gate hands off to the pending fade-out state", (
   assert.equal(game.story.ending, true);
   assert.equal(game.story.text, "");
   assert.equal(game.state, "fadeOut");
+  assert.ok(Math.abs(game.finale.opacity - 0.5 / 255) < 1e-12);
+});
+
+test("finale preserves source fade, delay, audio, flyby, and blackout timing", () => {
+  const audio = recordingAudio();
+  const game = new Game({ seed: 22, audio });
+  game.state = "fadeOut";
+  game.story.started = true;
+  game.story.paused = false;
+
+  advance(game, 510);
+  assert.equal(game.state, "fadeOut");
+  assert.equal(game.finale.opacity, 1);
+  assert.equal(audio.events.some((event) => event.type === "play" && event.name === "finale"), false);
+
+  advance(game, 1);
+  assert.equal(game.state, "finalePause");
+  assert.equal(game.story.paused, true);
+  assert.equal(game.finale.revealAt, game.finale.startedAt + PHYSICS.finaleRevealDelaySeconds);
+  assert.equal(game.finale.blackAt, game.finale.startedAt + PHYSICS.finaleBlackDelaySeconds);
+  assert.equal(audio.events.filter((event) => event.type === "play" && event.name === "finale").length, 1);
+
+  advance(game, 1_499);
+  assert.equal(game.state, "finalePause");
+  advance(game, 1);
+  assert.equal(game.state, "finale");
+  assert.equal(game.finale.opacity, 1);
+
+  const primary = game.particles[0];
+  const secondary = game.secondaryParticles[0];
+  game.particles = [primary];
+  game.secondaryParticles = [secondary];
+  Object.assign(primary, { cycles: 0, maxCycles: 1, yScalar: 0.2 });
+  Object.assign(secondary, { cycles: 0, maxCycles: 1, yScalar: 0.2 });
+  game.ship.angle = 10;
+  game.ship.vx = 0;
+  game.ship.vy = 0;
+  advance(game, 1);
+  assert.equal(primary.yScalar, 1);
+  assert.equal(secondary.yScalar, 1);
+  assert.equal(primary.angle, 10);
+  assert.equal(secondary.angle, 10);
+  assert.equal(game.ship.angle, 52);
+  assert.ok(Math.abs(game.ship.vx - 0.03 * Math.sin(52 * Math.PI / 180)) < 1e-12);
+  assert.ok(Math.abs(game.ship.vy + 0.03 * Math.cos(52 * Math.PI / 180)) < 1e-12);
+  assert.ok(Math.abs(game.finale.opacity - (1 - 0.3 / 255)) < 1e-12);
+
+  advance(game, 849);
+  assert.ok(game.finale.opacity < 1e-12);
+  assert.equal(game.state, "finale");
+  game.finale.opacity = 0;
+  game.elapsed = game.finale.blackAt;
+  game.updateFinaleState(1);
+  assert.equal(game.state, "finale");
+  game.elapsed += 1 / 60;
+  game.updateFinaleState(1);
+  assert.equal(game.state, "ended");
+  assert.equal(game.finale.opacity, 1);
+  assert.equal(audio.events.filter((event) => event.type === "play" && event.name === "finale").length, 1);
+});
+
+test("browser finale deadlines use an injected monotonic wall clock", () => {
+  let now = 100;
+  const game = new Game({ seed: 25, now: () => now });
+  game.state = "fadeOut";
+  game.finale.opacity = 1;
+  game.updateFinaleState(1);
+  assert.equal(game.state, "finalePause");
+  assert.equal(game.finale.revealAt, 125);
+  assert.equal(game.finale.blackAt, 173);
+
+  game.elapsed = 10_000;
+  game.updateFinaleState(1);
+  assert.equal(game.state, "finalePause");
+  now = 125;
+  game.updateFinaleState(1);
+  assert.equal(game.state, "finale");
+  game.finale.opacity = 0;
+  now = 173;
+  game.updateFinaleState(1);
+  assert.equal(game.state, "finale");
+  now = 173.001;
+  game.updateFinaleState(1);
+  assert.equal(game.state, "ended");
 });

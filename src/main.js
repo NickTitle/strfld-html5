@@ -6,7 +6,7 @@ import { CanvasRenderer } from "./renderer.js";
 
 export function startGame({ canvas, requestFrame = requestAnimationFrame } = {}) {
   const audio = new AudioController();
-  const game = new Game({ audio });
+  const game = new Game({ audio, now: () => performance.now() / 1000 });
   const input = new KeyboardInput(window);
   const renderer = new CanvasRenderer(canvas);
   let previousTime = performance.now();

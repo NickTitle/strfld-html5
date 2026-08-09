@@ -214,3 +214,56 @@ test("visible sonar consumes one shared-RNG spread sample per draw", () => {
   renderer.draw(game);
   assert.equal(game.random.state, expected.state);
 });
+
+test("finale renders offset primary ship then offset secondary ship below deep stars", () => {
+  const context = recordingContext();
+  const renderer = new CanvasRenderer({ getContext: () => context });
+  const game = new Game({ seed: 23 });
+  game.state = "finale";
+  game.finale.opacity = 0;
+  game.radio.showSonar = false;
+  game.artifacts = [];
+  game.stars = [{ x: 2, y: 2, z: 2, size: 1, rotation: 0, color: "deep-star" }];
+  game.particles = [{ x: 320, y: 245, size: 2, angle: 52, color: "primary-particle" }];
+  game.secondaryParticles = [{ x: 320, y: 245, size: 2, angle: 52, color: "secondary-particle" }];
+  game.ship.angle = 52;
+
+  renderer.draw(game);
+
+  const indexOf = (color) => context.operations.findIndex((operation) => operation.color === color);
+  assert.ok(indexOf("primary-particle") < indexOf(COLORS.shipOrange));
+  assert.ok(indexOf(COLORS.shipOrange) < indexOf("secondary-particle"));
+  assert.ok(indexOf("secondary-particle") < indexOf(COLORS.shipPeach));
+  assert.ok(indexOf(COLORS.shipPeach) < indexOf("deep-star"));
+  assert.equal(indexOf(COLORS.grillGrey), -1);
+  assert.ok(context.operations.some((operation) => operation.type === "translate" && operation.x === 25 && operation.y === 25));
+  assert.ok(context.operations.some((operation) => operation.type === "translate" && operation.x === -25 && operation.y === -25));
+  assert.ok(context.operations.some((operation) => operation.type === "moveTo" && operation.x === -6 && operation.y === -21));
+  assert.ok(context.operations.some((operation) => operation.type === "moveTo" && operation.x === -5 && operation.y === -20));
+  assert.ok(context.operations.some((operation) => operation.type === "moveTo" && operation.x === -0.25 && operation.y === -21));
+});
+
+test("finale overlay uses the source-rounded opacity and covers the HUD", () => {
+  const context = recordingContext();
+  const renderer = new CanvasRenderer({ getContext: () => context });
+  const game = new Game({ seed: 24 });
+  game.state = "finalePause";
+  game.finale.opacity = 128.4 / 255;
+  game.stars = [];
+  game.artifacts = [];
+  game.particles = [];
+  game.secondaryParticles = [];
+  game.radio.showSonar = false;
+
+  renderer.draw(game);
+
+  assert.deepEqual(context.operations.at(-1), {
+    type: "fillRect",
+    color: `rgba(0, 0, 0, ${128 / 255})`,
+    x: 0,
+    y: 0,
+    width: 640,
+    height: 480
+  });
+  assert.equal(context.operations.some((operation) => operation.color === COLORS.grillGrey), false);
+});

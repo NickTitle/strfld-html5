@@ -11,6 +11,7 @@ const TRACKS = Object.freeze({
   power: ["./assets/sfx/button.mp3", { loop: false, volume: 1 }],
   found: ["./assets/sfx/found_planet.mp3", { loop: false, volume: 1 }],
   engineOff: ["./assets/sfx/engine_turn_off.mp3", { loop: false, volume: 1 }],
+  finale: ["./assets/songs/game_end.mp3", { loop: false, volume: 1 }],
   ...BROADCAST_TRACKS
 });
 
