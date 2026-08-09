@@ -186,6 +186,43 @@ test("particle geometry preserves Ruby integer division for odd sizes", () => {
   ));
 });
 
+test("radio preserves the source chassis, grill, octagonal controls, and dial rotations", () => {
+  const context = recordingContext();
+  const renderer = new CanvasRenderer({ getContext: () => context });
+
+  renderer.drawRadio(137.5, 0.5);
+
+  assert.ok(context.operations.some((operation) =>
+    operation.type === "fillRect"
+      && operation.color === COLORS.white
+      && operation.x === 11
+      && operation.y === 412
+      && operation.width === 128
+      && operation.height === 68
+  ));
+  assert.equal(context.operations.filter((operation) =>
+    operation.type === "fillRect"
+      && (operation.color === COLORS.radioGrey || operation.color === COLORS.darkGrey)
+      && operation.width === 2
+      && operation.height === 2
+  ).length, 240);
+  assert.ok(context.operations.some((operation) =>
+    operation.type === "moveTo" && operation.x === 10 && operation.y === 413
+  ));
+  assert.ok(context.operations.some((operation) =>
+    operation.type === "fill" && operation.color === `rgba(255, 255, 204, ${128 / 255})`
+  ));
+  assert.ok(context.operations.some((operation) =>
+    operation.type === "rotate" && operation.angle === Math.PI / 2
+  ));
+  assert.ok(context.operations.some((operation) =>
+    operation.type === "rotate" && operation.angle === Math.PI / 4
+  ));
+  assert.ok(context.operations.some((operation) =>
+    operation.type === "rotate" && operation.angle === 2 * Math.PI
+  ));
+});
+
 test("visible sonar consumes one shared-RNG spread sample per draw", () => {
   const context = recordingContext();
   const renderer = new CanvasRenderer({ getContext: () => context });

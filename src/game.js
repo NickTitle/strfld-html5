@@ -198,9 +198,11 @@ export class Game {
         return;
       }
 
-      const damping = PASSIVE_DAMPING_PER_FRAME ** frames;
-      if (Math.abs(this.ship.vx) > 0.05) this.ship.vx *= damping;
-      if (Math.abs(this.ship.vy) > 0.05) this.ship.vy *= damping;
+      // The source runs the story-bound passive ship update before its
+      // state-0 fly-by thrust. That update also advances and resets both
+      // particle banks at full strength; the primary bank is drawn as title
+      // exhaust while the opening blackout clears.
+      this.updateShipMotion(frames, EMPTY_INPUT, true);
       this.updateStars(frames);
       this.updateArtifacts(frames);
       this.updateMinimap(frames);

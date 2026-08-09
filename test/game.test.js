@@ -68,7 +68,7 @@ test("title fades before accepting space", () => {
   assert.equal(game.state, "playing");
 });
 
-test("title fly-by changes velocity and stars without moving world position", () => {
+test("title fly-by advances full-strength particles before thrust without moving world position", () => {
   const game = new Game({ seed: 21 });
   const start = { x: game.ship.x, y: game.ship.y };
   const star = game.stars[0];
@@ -80,7 +80,11 @@ test("title fly-by changes velocity and stars without moving world position", ()
   assert.deepEqual({ x: star.x, y: star.y }, starStart);
   assert.notEqual(game.ship.vx, 0);
   assert.notEqual(game.ship.vy, 0);
-  assert.deepEqual(game.particles[0], particleStart);
+  assert.notDeepEqual(game.particles[0], particleStart);
+  assert.equal(game.particles[0].color, COLORS.red);
+  assert.equal(game.particles[0].cycles, 0);
+  assert.equal(game.particles[0].yScalar, 1);
+  assert.ok(Math.abs(game.particles[0].angle - 0.1) < 1e-12);
 
   game.update(FIXED_STEP_SECONDS, EMPTY_INPUT);
   assert.deepEqual({ x: game.ship.x, y: game.ship.y }, start);

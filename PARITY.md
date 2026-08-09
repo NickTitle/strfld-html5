@@ -118,8 +118,10 @@ visible bar draw.
   and artifacts but below the HUD.
 - The ship has 200 primary engine particles and 100 secondary particles. Color
   advances white → yellow → orange → red over lifetime. Strength follows
-  engine volume in gameplay. The original title leaves its initially transparent
-  particles unadvanced; finale state 4 resets both banks at full strength.
+  engine volume in gameplay. The original title advances both banks in the
+  story-bound passive update, resets them at full strength before the state-0
+  fly-by thrust, and draws the primary bank; finale state 4 resets both banks
+  at full strength.
 - Ship one is the orange patched craft drawn at screen center. The finale draws
   it translated +25,+25 and a peach second ship translated −25,−25. The
   original shares particle origins; visual parity review must decide whether

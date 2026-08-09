@@ -52,7 +52,7 @@ export class CanvasRenderer {
         context.fillText("*SPACE*", 570, 458);
       }
       this.drawMinimap(game);
-      this.drawRadio(game.radioOffset);
+      this.drawRadio(game.radioOffset, game.radio.receptionVolume);
     }
 
     const fadeOpacity = game.state === "title" ? game.titleFade : game.finale.opacity;
@@ -306,23 +306,84 @@ export class CanvasRenderer {
     }
   }
 
-  drawRadio(offset) {
+  drawRadio(offset, receptionVolume = 0) {
     const context = this.context;
+
+    // White chassis and its angled top shoulder.
     context.fillStyle = COLORS.white;
-    context.fillRect(10, 405, 130, 75);
-    context.strokeStyle = COLORS.frameBlue;
-    context.lineWidth = 4;
-    context.strokeRect(12, 407, 126, 73);
+    context.fillRect(11, 412, 128, 68);
+    this.fillPolygon([[11, 412], [17, 407], [132, 407], [139, 412]], COLORS.white);
+
+    // Perforated speaker grill. Ruby integer division makes each nominal
+    // three-pixel dot a two-pixel square.
+    for (let column = 0; column < 20; column += 1) {
+      for (let row = 0; row < 12; row += 1) {
+        context.fillStyle = column >= 2 && column <= 8 && row >= 2 && row <= 8
+          ? COLORS.darkGrey
+          : COLORS.radioGrey;
+        context.fillRect(18 + 6 * column, 414 + 6 * row, 2, 2);
+      }
+    }
+
+    // Open-bottom blue frame from the original five quads.
+    const frame = COLORS.frameBlue;
+    this.fillPolygon([[10, 413], [14, 413], [14, 480], [10, 480]], frame);
+    this.fillPolygon([[10, 413], [18, 405], [18, 409], [14, 413]], frame);
+    this.fillPolygon([[18, 405], [132, 405], [132, 409], [18, 409]], frame);
+    this.fillPolygon([[132, 405], [140, 413], [136, 413], [132, 409]], frame);
+    this.fillPolygon([[136, 413], [140, 413], [140, 480], [136, 480]], frame);
+
+    // Dial base and reception face.
+    this.drawOctagon(85, 420, 40, COLORS.darkGrey);
+    this.drawOctagon(87, 422, 36, COLORS.white);
+    const receptionColor = offset === 0
+      ? COLORS.radioGrey
+      : receptionVolume > 0
+        ? `rgba(255, 255, 204, ${Math.round(receptionVolume * 255) / 255})`
+        : COLORS.white;
+    this.drawOctagon(87, 422, 36, receptionColor);
+
+    const mark = COLORS.darkGrey;
+    context.fillStyle = mark;
+    context.fillRect(90, 438, 5, 1);
+    context.fillRect(92, 433, 1, 1);
+    this.fillPolygon([[95, 429], [96, 428], [97, 429], [96, 430]], mark);
+    context.fillRect(100, 427, 1, 1);
+    context.fillRect(105, 424, 1, 6);
+    context.fillRect(109, 427, 1, 1);
+    this.fillPolygon([[115, 429], [114, 428], [113, 429], [114, 430]], mark);
+    context.fillRect(117, 433, 1, 1);
+    context.fillRect(115, 438, 5, 1);
+
+    // Main tuner and its fixed indicator.
+    context.save();
+    context.translate(105, 439);
+    context.rotate(offset / 275 * Math.PI);
+    context.translate(-105, -439);
+    this.drawOctagon(98, 432, 14, COLORS.darkGrey);
+    this.drawOctagon(99, 433, 12, COLORS.white);
+    this.drawOctagon(91, 437, 3, COLORS.dialOrange);
+    context.restore();
     context.fillStyle = COLORS.darkGrey;
-    context.beginPath();
-    context.arc(105, 440, 20, Math.PI, 2 * Math.PI);
-    context.fill();
-    context.strokeStyle = COLORS.dialOrange;
-    context.lineWidth = 3;
-    context.beginPath();
-    context.moveTo(105, 440);
-    const angle = Math.PI + offset / 275 * Math.PI;
-    context.lineTo(105 + Math.cos(angle) * 17, 440 + Math.sin(angle) * 17);
-    context.stroke();
+    context.fillRect(101, 450, 9, 1);
+    context.fillStyle = COLORS.dialOrange;
+    context.fillRect(104, 449, 3, 1);
+
+    // Power and tuning knobs.
+    this.drawRadioKnob(94, offset > 0 ? Math.PI / 4 : 0, 1);
+    this.drawRadioKnob(109, offset / 275 * 4 * Math.PI, -1);
+  }
+
+  drawRadioKnob(x, angle, indicatorOffset) {
+    const context = this.context;
+    const y = 465;
+    context.save();
+    context.translate(x + 4, y + 4);
+    context.rotate(angle);
+    context.translate(-(x + 4), -(y + 4));
+    this.drawOctagon(x - 1, y - 1, 10, COLORS.darkGrey);
+    this.drawOctagon(x, y, 8, COLORS.white);
+    this.drawOctagon(x + indicatorOffset, y + (indicatorOffset < 0 ? 3 : 0), 2, COLORS.dialOrange);
+    context.restore();
   }
 }
