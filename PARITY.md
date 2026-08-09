@@ -16,11 +16,11 @@ ported; **verify** means final parity requires automated and browser evidence.
 | Logical display | 640×480, scaled into a 1200×900 window | **foundation**: responsive 640×480 Canvas |
 | Main loop | Gosu update/draw loop | **foundation**: deterministic fixed 60 Hz update with independent render scheduling |
 | State 0 | Black fades away one alpha unit per update; title ship flies at 52°; Space starts only after fade reaches zero | **foundation** |
-| State 1 | Normal flight, artifacts, HUD, story, radio | **pending** beyond flight/radio foundations |
-| State 2 | Story completion fades to black by 0.5 alpha/update | **pending** |
-| State 3 | Black pause; finale audio begins; 25-second delay | **pending** |
-| State 4 | Two-ship finale fades in by 0.3 alpha/update | **pending** |
-| State 5 | At 73 seconds from finale start, return to black | **pending** |
+| State 1 | Normal flight, artifacts, HUD, story, radio | **foundation** through the complete 61-entry story, orbit, shutdown gates, sonar, and gameplay particles |
+| State 2 | Story completion fades to black by 0.5 alpha/update | **foundation** |
+| State 3 | Black pause; finale audio begins; 25-second delay | **foundation** with monotonic wall-clock deadline |
+| State 4 | Two-ship finale fades in by 0.3 alpha/update | **foundation** |
+| State 5 | At 73 seconds from finale start, return to black | **foundation** with strict post-deadline transition |
 | Deployment | Ruby 2.0 + Gosu from `app/`; no build artifact | **foundation**: static HTML/CSS/JS, no build/framework/server-side application runtime |
 
 ## Story gates and input
@@ -39,8 +39,9 @@ ported; **verify** means final parity requires automated and browser evidence.
 - Escape exits in Gosu. In the browser, normal browser exit/navigation remains
   available rather than trapping Escape.
 
-Current status: **foundation** keyboard state and edge-triggered Space are in
-place; **pending** full story machine and one-second gate timing.
+Current status: **foundation** complete 61-entry story inventory, pause/free-flight
+gates, radio and artifact cues, final radio-off handoff, and deterministic
+one-second gate timing.
 
 ## Ship physics and controls
 
@@ -54,7 +55,7 @@ place; **pending** full story machine and one-second gate timing.
 | Passive damping | velocity × 0.995/update while component magnitude > 0.05 | **foundation** |
 | Passive drift rotation | ±0.1°/update based on y velocity sign | **foundation** |
 | Engine volume | +0.025/update under thrust; ×0.95 until cutoff at 0.05 | **foundation** |
-| Tower capture/orbit | pull toward a close tuned tower, cap high velocity, face orbit direction | **pending** |
+| Tower capture/orbit | pull toward a close tuned tower, cap high velocity, face orbit direction | **foundation** |
 | World bounds | no wrap or clamp; commented-out wrap stays disabled | **foundation** |
 
 ## Radio, tuning, and 11 artifacts
@@ -84,7 +85,8 @@ place; **pending** full story machine and one-second gate timing.
 Current status: **foundation** dial bounds, input, power transition, deterministic
 11-artifact generation, original first-two/weaker-signal selection, static and
 broadcast mixing, proximity targeting, and lazy per-artifact audio loops;
-**pending** tower rendering, orbit, shutdown, and story integration.
+**foundation** nearby artifact update/draw gates, full tower geometry, orbit,
+shutdown lifecycle/audio, and story integration.
 
 ## Sonar and minimap
 
@@ -92,15 +94,18 @@ broadcast mixing, proximity targeting, and lazy per-artifact audio loops;
   alpha 255, speed 5, and the bearing toward the weaker of the first two
   in-range artifacts selected by the original radio logic. Per update
   width grows 0.5, alpha falls 5, speed damps by 0.97, and travel advances by
-  current speed. Draw angle adds a fresh random ±30° spread. The burst cadence
-  is intended to vary from 20 to 200 updates based on signal volume.
+  current speed. Draw angle adds a fresh random ±30° spread. Because the Ruby
+  expression is evaluated as `180 - broadcast_volume + 20`, the shipped burst
+  cadence is approximately 199–200 updates rather than the apparent intended
+  20–200 range; that executed behavior is preserved.
 - The 100×100 minimap sits at (10,10) with a two-pixel frame. It maps absolute
   world coordinates linearly, blinks the 3×3 player marker every 60 updates,
   and shows only that weaker selected tuned artifact.
 
-Current status: **pending** implementation and deterministic replacement for
-draw-time sonar randomness; final verification must cover bearing, spread,
-cadence, map scaling, visibility, and draw order.
+Current status: **foundation** exact minimap frame, world mapping, asymmetric
+marker offsets, weaker-signal visibility, 61-update player blink, ten-bar sonar
+lifecycle/bearing/cadence, and source-exact shared-RNG spread sampling once per
+visible bar draw.
 
 ## Particles, parallax, and rendering
 
@@ -113,7 +118,10 @@ cadence, map scaling, visibility, and draw order.
   and artifacts but below the HUD.
 - The ship has 200 primary engine particles and 100 secondary particles. Color
   advances white → yellow → orange → red over lifetime. Strength follows
-  engine volume in gameplay and stays full for title/finale scenes.
+  engine volume in gameplay. The original title advances both banks in the
+  story-bound passive update, resets them at full strength before the state-0
+  fly-by thrust, and draws the primary bank; finale state 4 resets both banks
+  at full strength.
 - Ship one is the orange patched craft drawn at screen center. The finale draws
   it translated +25,+25 and a peach second ship translated −25,−25. The
   original shares particle origins; visual parity review must decide whether
@@ -124,8 +132,10 @@ cadence, map scaling, visibility, and draw order.
   widths/heights update; draw uses radial distance less than 1.5×640.
 
 Current status: **foundation** deterministic star count/generation, depth-scaled
-motion/wrap, background, and representative ship; **pending** exact layered
-geometry, color rarity, particles, artifacts, sonar, and finale ship.
+motion/wrap, background, source-shaped primary ship, original star/artifact/sonar/
+primary-particle/ship/HUD layer order, artifact geometry, and both gameplay
+particle-bank lifecycles; **foundation** full source polygon geometry for both
+ships plus translated primary/secondary finale particle layering.
 
 ## Finale
 
@@ -135,8 +145,10 @@ starts `game_end.mp3`, schedules fade-in after 25 seconds and black after 73
 seconds. State 4 shows the two offset ships with continuous full-strength
 particles and fixed 52° heading while fading in. State 5 is black.
 
-Current status: **pending**. Final acceptance requires both deterministic timing
-coverage and a fresh title → 11 searches/shutdowns → finale browser run.
+Current status: **foundation** story state 60 handoff, source update-based fades,
+25/73-second monotonic deadlines, finale audio, fixed 52° flyby, two ships, and
+both particle banks. The sole remaining acceptance gap is a fresh title → 11
+searches/shutdowns → finale browser run.
 
 ## Audio and assets
 
@@ -144,7 +156,7 @@ coverage and a fresh title → 11 searches/shutdowns → finale browser run.
 |---|---|---|
 | Pixel font | `04B03.TTF` | **foundation**, copied unchanged |
 | Songs | `1.mp3`…`10.mp3` | **foundation**, copied unchanged; mixing pending |
-| Finale | `game_end.mp3` | **foundation**, copied unchanged; state timing pending |
+| Finale | `game_end.mp3` | **foundation**, copied unchanged with one-shot state-3 cue |
 | Effects | button, engine loop/on/off/slow, found, static, three typing variants | **foundation**, copied unchanged; full cues/mix pending |
 
 Browser audio must remain locked until a user gesture, then preserve looping,
