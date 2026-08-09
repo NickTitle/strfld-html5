@@ -7,6 +7,8 @@ const MAX_SPEED = 4;
 const ACCELERATION_PER_FRAME = 0.03;
 const ACTIVE_DAMPING_PER_FRAME = 0.993;
 const PASSIVE_DAMPING_PER_FRAME = 0.995;
+const ARTIFACT_COUNT = 11;
+const BROADCAST_RANGE = 8;
 
 function frameFactor(seconds) {
   return seconds * 60;
@@ -33,6 +35,14 @@ export class Game {
       engineVolume: 0
     };
     this.stars = Array.from({ length: STAR_COUNT }, () => this.createStar());
+    this.artifacts = Array.from({ length: ARTIFACT_COUNT }, (_, index) => this.createArtifact(index));
+    this.radio = {
+      activeArtifact: null,
+      receptionVolume: 0,
+      showSonar: false,
+      sonarBearing: 0,
+      staticVolume: 0
+    };
   }
 
   createStar() {
@@ -63,6 +73,37 @@ export class Game {
     }
   }
 
+  randomColor(alpha = "ff") {
+    const digits = Array.from({ length: 6 }, () => this.random.integer(15).toString(16));
+    return `#${digits.join("")}${alpha}`;
+  }
+
+  createArtifact(index) {
+    const count = index + 1;
+    const color = this.randomColor();
+    const towerColor = this.randomColor();
+    const minimumSize = 150 + this.random.integer(25);
+    const maximumSize = 400 + this.random.integer(25);
+    return {
+      id: count,
+      color,
+      towerColor,
+      rotationDirection: -1,
+      size: maximumSize - minimumSize,
+      shutdownFrames: 150 + this.random.integer(60),
+      rotation: this.random.integer(90),
+      frequency: this.random.integer(275),
+      x: this.random.integer(WORLD_SIZE),
+      y: this.random.integer(WORLD_SIZE),
+      audioName: `broadcast${count}`,
+      song: (count % 10) + 1,
+      broadcastVolume: 0,
+      found: false,
+      turnedOff: false,
+      visibleOnMap: false
+    };
+  }
+
   update(seconds, input = EMPTY_INPUT) {
     const frames = frameFactor(seconds);
     this.elapsed += seconds;
@@ -74,6 +115,7 @@ export class Game {
         this.ship.x += this.ship.vx * frames;
         this.ship.y += this.ship.vy * frames;
         this.updateStars(frames);
+        this.updateRadio();
         this.audio?.setLoopVolume("engine", this.ship.engineVolume);
         return;
       }
@@ -94,6 +136,7 @@ export class Game {
     this.ship.x += this.ship.vx * frames;
     this.ship.y += this.ship.vy * frames;
     this.updateStars(frames);
+    this.updateRadio();
     this.audio?.setLoopVolume("engine", this.ship.engineVolume);
   }
 
@@ -156,6 +199,75 @@ export class Game {
       }
     }
   }
+
+  updateRadio() {
+    for (const artifact of this.artifacts) {
+      artifact.broadcastVolume = 0;
+      artifact.visibleOnMap = false;
+    }
+
+    if (this.radioOffset === 0) {
+      this.radio.activeArtifact = null;
+      this.radio.receptionVolume = 0;
+      this.radio.showSonar = false;
+      this.radio.staticVolume = 0;
+      this.updateRadioAudio();
+      return;
+    }
+
+    const selected = [];
+    for (const artifact of this.artifacts) {
+      const closeness = Math.abs(this.radioOffset - artifact.frequency);
+      if (closeness < BROADCAST_RANGE && selected.length < 2 && !artifact.turnedOff) {
+        selected.push({
+          artifact,
+          distance: Math.hypot(this.ship.x - artifact.x, this.ship.y - artifact.y),
+          strength: BROADCAST_RANGE - closeness
+        });
+      }
+    }
+    selected.sort((left, right) => left.strength - right.strength);
+
+    if (selected.length === 0) {
+      this.radio.showSonar = false;
+      this.radio.staticVolume = 0.75;
+      this.updateRadioAudio();
+      return;
+    }
+
+    this.radio.showSonar = true;
+    this.radio.activeArtifact = null;
+    for (const [index, signal] of selected.entries()) {
+      const signalComponent = 0.6 * signal.strength / BROADCAST_RANGE;
+      const distanceComponent = 0.45 - 0.45 * signal.distance / WORLD_SIZE;
+      const volume = Math.min(1, signalComponent + distanceComponent);
+      signal.artifact.broadcastVolume = index === 0 ? volume : volume * (0.2 ** index);
+
+      if (index === 0) {
+        if (signal.artifact.found) signal.artifact.broadcastVolume = 0;
+        signal.artifact.visibleOnMap = true;
+        this.radio.receptionVolume = volume;
+        this.radio.sonarBearing = Math.atan2(
+          this.ship.y - signal.artifact.y,
+          this.ship.x - signal.artifact.x
+        ) * 180 / Math.PI;
+        if (signal.distance < VIEW_HEIGHT / 2 && signal.distance < VIEW_WIDTH / 2) {
+          this.radio.activeArtifact = signal.artifact;
+          this.radio.staticVolume = 0;
+        } else {
+          this.radio.staticVolume = (1 - volume) * 0.75;
+        }
+      }
+    }
+    this.updateRadioAudio();
+  }
+
+  updateRadioAudio() {
+    this.audio?.setLoopVolume("static", this.radio.staticVolume);
+    for (const artifact of this.artifacts) {
+      this.audio?.setLoopVolume(artifact.audioName, artifact.broadcastVolume);
+    }
+  }
 }
 
 export const PHYSICS = Object.freeze({
@@ -163,5 +275,7 @@ export const PHYSICS = Object.freeze({
   activeDampingPerFrame: ACTIVE_DAMPING_PER_FRAME,
   passiveDampingPerFrame: PASSIVE_DAMPING_PER_FRAME,
   maxSpeed: MAX_SPEED,
-  starCount: STAR_COUNT
+  starCount: STAR_COUNT,
+  artifactCount: ARTIFACT_COUNT,
+  broadcastRange: BROADCAST_RANGE
 });

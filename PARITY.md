@@ -77,10 +77,14 @@ place; **pending** full story machine and one-second gate timing.
   and shutdown target. Shutdown flickers for 150–209 updates, plays the found
   sound at start, becomes grey/off, silences its broadcast, advances story,
   and cannot broadcast again.
+- The original retains a previously close shutdown target when tuning moves to
+  a frequency with no in-range signal; powering the radio off or selecting a
+  different signal clears it. This stale-target behavior is preserved.
 
-Current status: **foundation** dial bounds, input, power transition, and copied
-audio; **pending** signal selection/mixing, tower generation/rendering, orbit,
-shutdown, and story integration.
+Current status: **foundation** dial bounds, input, power transition, deterministic
+11-artifact generation, original first-two/weaker-signal selection, static and
+broadcast mixing, proximity targeting, and lazy per-artifact audio loops;
+**pending** tower rendering, orbit, shutdown, and story integration.
 
 ## Sonar and minimap
 

@@ -1,7 +1,15 @@
+const BROADCAST_TRACKS = Object.fromEntries(
+  Array.from({ length: 11 }, (_, index) => {
+    const song = ((index + 1) % 10) + 1;
+    return [`broadcast${index + 1}`, [`./assets/songs/${song}.mp3`, { loop: true, volume: 0 }]];
+  })
+);
+
 const TRACKS = Object.freeze({
   engine: ["./assets/sfx/engine3.mp3", { loop: true, volume: 0 }],
   static: ["./assets/sfx/static.mp3", { loop: true, volume: 0 }],
-  power: ["./assets/sfx/button.mp3", { loop: false, volume: 1 }]
+  power: ["./assets/sfx/button.mp3", { loop: false, volume: 1 }],
+  ...BROADCAST_TRACKS
 });
 
 export class AudioController {
