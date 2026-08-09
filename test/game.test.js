@@ -4,11 +4,21 @@ import test from "node:test";
 import { FIXED_STEP_SECONDS } from "../src/constants.js";
 import { Game, PHYSICS } from "../src/game.js";
 import { EMPTY_INPUT } from "../src/input.js";
+import { ARTIFACT_CUES, RADIO_CUES, STORY } from "../src/story.js";
 
 function advance(game, frames, input = EMPTY_INPUT) {
   for (let frame = 0; frame < frames; frame += 1) {
     game.update(FIXED_STEP_SECONDS, input);
   }
+}
+
+function recordingAudio() {
+  const events = [];
+  return {
+    events,
+    play(name) { events.push({ type: "play", name }); },
+    setLoopVolume(name, volume) { events.push({ type: "volume", name, volume }); }
+  };
 }
 
 test("same seed and inputs produce the same simulation", () => {
@@ -220,4 +230,132 @@ test("minimap maps world coordinates and blinks the ship on the source cadence",
   game.updateMinimap(1);
   assert.equal(game.minimap.showShip, false);
   assert.equal(game.minimap.cycle, 0);
+});
+
+test("story inventory and cue gates match the original 61-entry script", () => {
+  assert.equal(STORY.length, 61);
+  assert.deepEqual(STORY[0], { text: "It's all gone; it must be.", paused: true });
+  assert.deepEqual(STORY[60], { text: "( turn the radio off with ' , ' )", paused: false });
+  assert.deepEqual([...RADIO_CUES], [8, 15, 20, 23, 27, 31, 34, 38, 43, 49, 55]);
+  assert.deepEqual([...ARTIFACT_CUES], [12, 18, 22, 25, 29, 33, 37, 41, 46, 52, 57]);
+});
+
+test("story debounce, radio startup gate, and paused controls follow source order", () => {
+  const game = new Game({ seed: 13 });
+  game.state = "playing";
+  game.startStory();
+  game.ship.angle = 10;
+
+  game.update(FIXED_STEP_SECONDS, { ...EMPTY_INPUT, advance: true, left: true, thrust: true, tuneUp: true });
+  assert.equal(game.story.index, 0);
+  assert.ok(Math.abs(game.ship.angle - 10.1) < 1e-12);
+  assert.equal(game.radioOffset, 0);
+
+  game.elapsed = 2;
+  game.update(FIXED_STEP_SECONDS, { ...EMPTY_INPUT, advance: true });
+  assert.equal(game.story.index, 1);
+
+  Object.assign(game.story, { index: 3, text: STORY[3].text, paused: true, lastAdvanceAt: 0 });
+  game.elapsed = 3;
+  game.update(FIXED_STEP_SECONDS, { ...EMPTY_INPUT, tuneUp: true });
+  assert.equal(game.story.index, 4);
+  assert.equal(game.radioOffset, 0.5);
+});
+
+test("close tuned radio cues advance story and begin source orbit motion", () => {
+  const audio = recordingAudio();
+  const game = new Game({ seed: 14, audio });
+  game.state = "playing";
+  game.startStory();
+  Object.assign(game.story, { index: 8, text: STORY[8].text, paused: false, lastAdvanceAt: 0 });
+  game.elapsed = 2;
+  game.ship.x = 10_000;
+  game.ship.y = 10_000;
+  game.ship.vx = 3;
+  game.ship.vy = 0;
+  const target = game.artifacts[0];
+  Object.assign(target, { frequency: 50, x: 10_160, y: 10_000 });
+  for (const artifact of game.artifacts.slice(1)) artifact.frequency = 200;
+  game.radioOffset = 50;
+
+  game.updateRadio();
+  assert.equal(game.radio.activeArtifact, target);
+  assert.equal(game.story.index, 9);
+  assert.equal(game.story.paused, true);
+  assert.ok(audio.events.some((event) => event.type === "play" && event.name === "engineOff"));
+
+  game.updateShipMotion(1, EMPTY_INPUT);
+  assert.ok(Math.abs(game.ship.vx - 2.73) < 1e-12);
+  assert.ok(Math.abs(game.ship.vy - 0.03) < 1e-12);
+  assert.ok(Math.abs(game.ship.angle - (Math.atan2(0.03, 2.73) * 180 / Math.PI + 90)) < 1e-12);
+});
+
+test("artifact shutdown is update-gated, flickers, greys out, and advances its story cue", () => {
+  const audio = recordingAudio();
+  const game = new Game({ seed: 15, audio });
+  game.state = "playing";
+  game.startStory();
+  Object.assign(game.story, { index: 12, text: STORY[12].text, paused: true, lastAdvanceAt: -2 });
+  const target = game.artifacts[0];
+  Object.assign(target, {
+    x: game.ship.x + 100,
+    y: game.ship.y,
+    frequency: 50,
+    shutdownFrames: 3,
+    shutdownRemaining: null
+  });
+  for (const artifact of game.artifacts.slice(1)) artifact.frequency = 200;
+  game.radioOffset = 50;
+  game.radio.activeArtifact = target;
+
+  game.update(FIXED_STEP_SECONDS, { ...EMPTY_INPUT, advance: true });
+  assert.equal(target.found, true);
+  assert.equal(target.shutdownRemaining, 2);
+  assert.equal(audio.events.filter((event) => event.type === "play" && event.name === "found").length, 1);
+
+  advance(game, 2);
+  assert.equal(target.turnedOff, true);
+  assert.equal(target.shutdownRemaining, 0);
+  assert.equal(target.flickerDraw, true);
+  assert.match(target.color, /^#([0-9a-e]{2})\1\1ff$/);
+  assert.match(target.towerColor, /^#([0-9a-e]{2})\1\1ff$/);
+  assert.equal(game.story.index, 13);
+  assert.equal(audio.events.filter((event) => event.type === "play" && event.name === "engineOff").length, 1);
+
+  const gated = game.artifacts[1];
+  Object.assign(gated, {
+    found: true,
+    turnedOff: false,
+    shutdownFrames: 20,
+    shutdownRemaining: 15,
+    flickerDraw: true,
+    x: game.ship.x + PHYSICS.artifactDrawDistance,
+    y: game.ship.y
+  });
+  game.updateArtifacts(1);
+  assert.equal(gated.shutdownRemaining, 15);
+  gated.x = game.ship.x;
+  game.updateArtifacts(1);
+  assert.equal(gated.shutdownRemaining, 14);
+  assert.equal(gated.flickerDraw, false);
+});
+
+test("the final radio-off story gate hands off to the pending fade-out state", () => {
+  const game = new Game({ seed: 16 });
+  game.state = "playing";
+  game.startStory();
+  Object.assign(game.story, {
+    index: STORY.length - 1,
+    text: STORY.at(-1).text,
+    paused: false,
+    lastAdvanceAt: -2
+  });
+  game.radioOffset = 0.5;
+
+  game.update(FIXED_STEP_SECONDS, { ...EMPTY_INPUT, tuneDown: true });
+
+  assert.equal(game.radioOffset, 0);
+  assert.equal(game.story.ending, true);
+  assert.equal(game.story.text, "");
+  assert.equal(game.state, "fadeOut");
 });

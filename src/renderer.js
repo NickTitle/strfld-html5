@@ -19,7 +19,7 @@ export class CanvasRenderer {
     for (const star of game.stars) {
       if (star.z <= 1.75) this.drawStar(star);
     }
-    if (game.state === "playing") {
+    if (game.state === "playing" || game.state === "fadeOut") {
       for (const artifact of game.artifacts) {
         if (artifact.flickerDraw && Math.hypot(artifact.x - game.ship.x, artifact.y - game.ship.y) < VIEW_WIDTH * 1.5) {
           this.drawArtifact(artifact, game.ship);
@@ -44,7 +44,13 @@ export class CanvasRenderer {
       context.fillRect(0, 460, VIEW_WIDTH, 20);
       context.fillStyle = COLORS.darkGrey;
       context.font = "18px 'Starfield Pixel', monospace";
-      context.fillText("It's all gone; it must be.", 150, 478);
+      context.fillText(game.story.text, 150, 478);
+      if (game.story.started && game.story.paused) {
+        context.fillStyle = "rgba(255, 255, 255, 0.73)";
+        context.fillRect(560, 440, 80, 20);
+        context.fillStyle = COLORS.darkGrey;
+        context.fillText("*SPACE*", 570, 458);
+      }
       this.drawMinimap(game);
       this.drawRadio(game.radioOffset);
     }

@@ -1,6 +1,7 @@
 import { VIEW_HEIGHT, VIEW_WIDTH, WORLD_SIZE } from "./constants.js";
 import { EMPTY_INPUT } from "./input.js";
 import { SeededRandom } from "./random.js";
+import { ARTIFACT_CUES, RADIO_CUES, STORY } from "./story.js";
 
 const STAR_COUNT = 150;
 const MAX_SPEED = 4;
@@ -33,6 +34,14 @@ export class Game {
     this.titleFade = 1;
     this.elapsed = 0;
     this.radioOffset = 0;
+    this.story = {
+      started: false,
+      index: 0,
+      text: "",
+      paused: true,
+      lastAdvanceAt: 0,
+      ending: false
+    };
     this.ship = {
       x: WORLD_SIZE / 2 + this.random.integer(100),
       y: WORLD_SIZE / 2 + this.random.integer(100),
@@ -102,6 +111,7 @@ export class Game {
       rotationDirection: -1,
       size: maximumSize - minimumSize,
       shutdownFrames: 150 + this.random.integer(60),
+      shutdownRemaining: null,
       rotation: this.random.integer(90),
       frequency: this.random.integer(275),
       x: this.random.integer(WORLD_SIZE),
@@ -124,6 +134,7 @@ export class Game {
     if (this.state === "title") {
       if (this.titleFade === 0 && input.advance) {
         this.state = "playing";
+        this.startStory();
         this.updatePlaying(frames, EMPTY_INPUT);
         this.updateArtifacts(frames);
         this.ship.x += this.ship.vx * frames;
@@ -160,6 +171,26 @@ export class Game {
   }
 
   updatePlaying(frames, input) {
+    const pausedForStory = this.story.started && this.story.paused;
+    const storyIndexAtStart = this.story.index;
+
+    if (pausedForStory && input.advance) {
+      if (ARTIFACT_CUES.has(storyIndexAtStart)) {
+        if (this.canAdvanceStory() && this.radio.activeArtifact) {
+          this.radio.activeArtifact.found = true;
+        }
+      } else if (storyIndexAtStart !== 3) {
+        this.advanceStory();
+      }
+    } else if (!pausedForStory && input.advance && this.radio.activeArtifact) {
+      this.radio.activeArtifact.found = true;
+    }
+
+    this.updateShipMotion(frames, pausedForStory ? EMPTY_INPUT : input);
+    this.updateRadioTuning(frames, input, pausedForStory);
+  }
+
+  updateShipMotion(frames, input) {
     if (input.left) this.ship.angle = (this.ship.angle - 2 * frames + 360) % 360;
     else if (input.right) this.ship.angle = (this.ship.angle + 2 * frames) % 360;
 
@@ -170,20 +201,75 @@ export class Game {
       this.ship.vy *= damping;
       this.ship.engineVolume = Math.min(1, this.ship.engineVolume + 0.025 * frames);
     } else {
-      const damping = PASSIVE_DAMPING_PER_FRAME ** frames;
-      if (Math.abs(this.ship.vx) > 0.05) this.ship.vx *= damping;
-      if (Math.abs(this.ship.vy) > 0.05) this.ship.vy *= damping;
-      this.ship.angle = (this.ship.angle + (this.ship.vy > 0 ? -0.1 : 0.1) * frames + 360) % 360;
       this.ship.engineVolume = this.ship.engineVolume > 0.05
         ? this.ship.engineVolume * (0.95 ** frames)
         : 0;
+      if (this.radio.activeArtifact && !input.left && !input.right) {
+        this.adjustForOrbit(frames, this.radio.activeArtifact);
+      } else {
+        const damping = PASSIVE_DAMPING_PER_FRAME ** frames;
+        if (Math.abs(this.ship.vx) > 0.05) this.ship.vx *= damping;
+        if (Math.abs(this.ship.vy) > 0.05) this.ship.vy *= damping;
+        this.ship.angle = (this.ship.angle + (this.ship.vy > 0 ? -0.1 : 0.1) * frames + 360) % 360;
+      }
     }
+  }
 
+  updateRadioTuning(frames, input, pausedForStory) {
     const oldOffset = this.radioOffset;
-    if (input.tuneDown) this.radioOffset = Math.max(0, this.radioOffset - 0.5 * frames);
-    if (input.tuneUp) this.radioOffset = Math.min(275, this.radioOffset + 0.5 * frames);
+    if (pausedForStory) {
+      if ((this.story.index === 3 || this.story.index === 4) && input.tuneUp) {
+        if (this.story.index === 3) this.advanceStory();
+        this.radioOffset = Math.min(275, this.radioOffset + 0.5 * frames);
+      }
+    } else {
+      if (input.tuneDown) this.radioOffset = Math.max(0, this.radioOffset - 0.5 * frames);
+      if (input.tuneUp) this.radioOffset = Math.min(275, this.radioOffset + 0.5 * frames);
+      if (this.story.started && this.story.index === STORY.length - 1 && input.tuneDown && this.radioOffset === 0) {
+        this.advanceStory();
+        this.story.text = "";
+      }
+    }
     if (oldOffset === 0 && this.radioOffset > 0) this.audio?.play("power");
     if (oldOffset > 0 && this.radioOffset === 0) this.audio?.play("power");
+  }
+
+  adjustForOrbit(frames, artifact) {
+    if (Math.abs(this.ship.vx) > 2) this.ship.vx *= 0.9 ** frames;
+    if (Math.abs(this.ship.vy) > 2) this.ship.vy *= 0.9 ** frames;
+    const distance = Math.hypot(artifact.x - this.ship.x, artifact.y - this.ship.y);
+    const scalar = 0.03 * Math.min(distance / (VIEW_HEIGHT / 3), 1) * frames;
+    this.ship.vx += this.ship.x > artifact.x ? -scalar : scalar;
+    this.ship.vy += this.ship.y > artifact.y ? -scalar : scalar;
+    let motionAngle = Math.atan2(this.ship.vy, this.ship.vx) * 180 / Math.PI;
+    if (motionAngle < 0) motionAngle += 360;
+    this.ship.angle = motionAngle + 90;
+  }
+
+  startStory() {
+    this.story.started = true;
+    this.story.index = 0;
+    this.story.text = STORY[0].text;
+    this.story.paused = STORY[0].paused;
+    this.story.lastAdvanceAt = this.elapsed;
+  }
+
+  canAdvanceStory() {
+    return this.elapsed - this.story.lastAdvanceAt >= 1;
+  }
+
+  advanceStory() {
+    if (!this.story.started || !this.canAdvanceStory()) return false;
+    this.story.lastAdvanceAt = this.elapsed;
+    if (this.story.index === STORY.length - 1) {
+      this.story.ending = true;
+      this.state = "fadeOut";
+      return true;
+    }
+    this.story.index += 1;
+    this.story.text = STORY[this.story.index].text;
+    this.story.paused = STORY[this.story.index].paused;
+    return true;
   }
 
   applyThrust(frames) {
@@ -224,9 +310,35 @@ export class Game {
       artifact.shouldDraw = Math.abs(artifact.x - this.ship.x) < ARTIFACT_DRAW_DISTANCE
         && Math.abs(artifact.y - this.ship.y) < VIEW_HEIGHT * 1.5;
       if (artifact.shouldDraw) {
+        if (artifact.found && !artifact.turnedOff) {
+          artifact.towerColor = this.randomColor();
+          artifact.color = this.randomColor();
+          if (artifact.shutdownRemaining === null) {
+            artifact.shutdownRemaining = artifact.shutdownFrames;
+            this.audio?.play("found");
+          }
+          artifact.shutdownRemaining -= frames;
+          if (artifact.shutdownRemaining <= 0) {
+            artifact.shutdownRemaining = 0;
+            artifact.turnedOff = true;
+            artifact.flickerDraw = true;
+            artifact.color = this.randomGrey();
+            artifact.towerColor = this.randomGrey();
+            this.audio?.play("engineOff");
+            if (this.story.started) this.advanceStory();
+            continue;
+          }
+          const flickerBand = Math.trunc((Math.trunc(artifact.shutdownRemaining / 2) % 10) / 6);
+          if (flickerBand === 1) artifact.flickerDraw = !artifact.flickerDraw;
+        }
         artifact.rotation = (artifact.rotation + 0.015 * artifact.rotationDirection * frames + 360) % 360;
       }
     }
+  }
+
+  randomGrey() {
+    const value = `${this.random.integer(15).toString(16)}${this.random.integer(15).toString(16)}`;
+    return `#${value}${value}${value}ff`;
   }
 
   updateMinimap(frames) {
@@ -281,7 +393,7 @@ export class Game {
     }
 
     this.radio.showSonar = true;
-    this.radio.activeArtifact = null;
+    if (!(this.story.started && this.story.paused)) this.radio.activeArtifact = null;
     for (const [index, signal] of selected.entries()) {
       const signalComponent = 0.6 * signal.strength / BROADCAST_RANGE;
       const distanceComponent = 0.45 - 0.45 * signal.distance / WORLD_SIZE;
@@ -289,6 +401,7 @@ export class Game {
       signal.artifact.broadcastVolume = index === 0 ? volume : volume * (0.2 ** index);
 
       if (index === 0) {
+        if (this.story.started && this.story.index === 4 && volume > 0.5) this.advanceStory();
         if (signal.artifact.found) signal.artifact.broadcastVolume = 0;
         signal.artifact.visibleOnMap = true;
         this.radio.receptionVolume = volume;
@@ -299,8 +412,13 @@ export class Game {
         if (signal.distance < VIEW_HEIGHT / 2 && signal.distance < VIEW_WIDTH / 2) {
           this.radio.activeArtifact = signal.artifact;
           this.radio.staticVolume = 0;
+          if (this.story.started && RADIO_CUES.has(this.story.index)) {
+            this.advanceStory();
+            this.audio?.play("engineOff");
+          }
         } else {
           this.radio.staticVolume = (1 - volume) * 0.75;
+          if (!(this.story.started && this.story.paused)) this.radio.activeArtifact = null;
         }
       }
     }

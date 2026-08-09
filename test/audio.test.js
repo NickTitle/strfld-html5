@@ -32,7 +32,7 @@ test("audio resources are created only after a browser unlock gesture", () => {
 
   audio.unlock();
   audio.unlock();
-  assert.equal(created.length, 14);
+  assert.equal(created.length, 16);
   assert.equal(created.find((sound) => sound.url.endsWith("engine3.mp3")).loop, true);
   assert.deepEqual(
     created.filter((sound) => sound.url.includes("/songs/")).map((sound) => sound.url.match(/\d+\.mp3$/)[0]),
@@ -41,6 +41,8 @@ test("audio resources are created only after a browser unlock gesture", () => {
   assert.equal(created.filter((sound) => sound.loop).length, 13);
   assert.ok(created.filter((sound) => sound.loop).every((sound) => sound.playCalls === 1));
   assert.equal(created.find((sound) => sound.url.endsWith("button.mp3")).playCalls, 0);
+  assert.equal(created.find((sound) => sound.url.endsWith("found_planet.mp3")).playCalls, 0);
+  assert.equal(created.find((sound) => sound.url.endsWith("engine_turn_off.mp3")).playCalls, 0);
   assert.notEqual(audio.sounds.get("broadcast1"), audio.sounds.get("broadcast11"));
 });
 

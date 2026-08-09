@@ -16,7 +16,7 @@ ported; **verify** means final parity requires automated and browser evidence.
 | Logical display | 640×480, scaled into a 1200×900 window | **foundation**: responsive 640×480 Canvas |
 | Main loop | Gosu update/draw loop | **foundation**: deterministic fixed 60 Hz update with independent render scheduling |
 | State 0 | Black fades away one alpha unit per update; title ship flies at 52°; Space starts only after fade reaches zero | **foundation** |
-| State 1 | Normal flight, artifacts, HUD, story, radio | **pending** beyond flight/radio foundations |
+| State 1 | Normal flight, artifacts, HUD, story, radio | **foundation** through the complete 61-entry story, orbit, and shutdown gates; sonar/particles pending |
 | State 2 | Story completion fades to black by 0.5 alpha/update | **pending** |
 | State 3 | Black pause; finale audio begins; 25-second delay | **pending** |
 | State 4 | Two-ship finale fades in by 0.3 alpha/update | **pending** |
@@ -39,8 +39,9 @@ ported; **verify** means final parity requires automated and browser evidence.
 - Escape exits in Gosu. In the browser, normal browser exit/navigation remains
   available rather than trapping Escape.
 
-Current status: **foundation** keyboard state and edge-triggered Space are in
-place; **pending** full story machine and one-second gate timing.
+Current status: **foundation** complete 61-entry story inventory, pause/free-flight
+gates, radio and artifact cues, final radio-off handoff, and deterministic
+one-second gate timing.
 
 ## Ship physics and controls
 
@@ -54,7 +55,7 @@ place; **pending** full story machine and one-second gate timing.
 | Passive damping | velocity × 0.995/update while component magnitude > 0.05 | **foundation** |
 | Passive drift rotation | ±0.1°/update based on y velocity sign | **foundation** |
 | Engine volume | +0.025/update under thrust; ×0.95 until cutoff at 0.05 | **foundation** |
-| Tower capture/orbit | pull toward a close tuned tower, cap high velocity, face orbit direction | **pending** |
+| Tower capture/orbit | pull toward a close tuned tower, cap high velocity, face orbit direction | **foundation** |
 | World bounds | no wrap or clamp; commented-out wrap stays disabled | **foundation** |
 
 ## Radio, tuning, and 11 artifacts
@@ -84,8 +85,8 @@ place; **pending** full story machine and one-second gate timing.
 Current status: **foundation** dial bounds, input, power transition, deterministic
 11-artifact generation, original first-two/weaker-signal selection, static and
 broadcast mixing, proximity targeting, and lazy per-artifact audio loops;
-**foundation** nearby artifact update/draw gates and full tower geometry;
-**pending** orbit, shutdown, and story integration.
+**foundation** nearby artifact update/draw gates, full tower geometry, orbit,
+shutdown lifecycle/audio, and story integration.
 
 ## Sonar and minimap
 
@@ -138,8 +139,10 @@ starts `game_end.mp3`, schedules fade-in after 25 seconds and black after 73
 seconds. State 4 shows the two offset ships with continuous full-strength
 particles and fixed 52° heading while fading in. State 5 is black.
 
-Current status: **pending**. Final acceptance requires both deterministic timing
-coverage and a fresh title → 11 searches/shutdowns → finale browser run.
+Current status: **foundation** story state 60 hands off to the fade-out state;
+finale fade/audio timing remains pending. Final acceptance requires both
+deterministic timing coverage and a fresh title → 11 searches/shutdowns →
+finale browser run.
 
 ## Audio and assets
 
