@@ -24,6 +24,10 @@ python3 -m http.server 8000
 
 Then open <http://localhost:8000>.
 
+The merged `main` branch is deployed by GitHub Actions to
+<https://nicktitle.github.io/strfld-html5/>. Relative asset paths keep the game
+working beneath the repository subpath.
+
 ## Test
 
 Node.js 20 or newer is used only for the automated test harness, not by the
@@ -40,6 +44,11 @@ npm test
 - Comma / Period: tune the radio
 - Space: advance story prompts and interact
 - Escape: leave or close the browser tab using normal browser controls
+
+Touch-capable devices show the PICO-8 control layout: Left / Right rotate, Up
+thrusts, Down advances or interacts, O tunes up, and X tunes down. The overlay
+stays hidden for fine-pointer desktop browsers, where the keyboard controls are
+unchanged.
 
 ## Attribution and license
 

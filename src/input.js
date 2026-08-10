@@ -1,47 +1,111 @@
-const CONTROL_CODES = new Set([
-  "ArrowLeft",
-  "ArrowRight",
-  "ArrowUp",
-  "Comma",
-  "Period",
-  "Space"
+const KEYBOARD_ACTIONS = new Map([
+  ["ArrowLeft", "left"],
+  ["ArrowRight", "right"],
+  ["ArrowUp", "thrust"],
+  ["Comma", "tuneDown"],
+  ["Period", "tuneUp"],
+  ["Space", "advance"]
 ]);
 
+const TOUCH_ACTIONS = new Set([
+  "left",
+  "right",
+  "thrust",
+  "tuneDown",
+  "tuneUp",
+  "advance"
+]);
+
+export function supportsTouchControls({ matchMedia, maxTouchPoints } = {}) {
+  const media = matchMedia ?? globalThis.matchMedia;
+  const touches = maxTouchPoints ?? globalThis.navigator?.maxTouchPoints ?? 0;
+  return touches > 0 || Boolean(media?.("(pointer: coarse)").matches);
+}
+
 export class KeyboardInput {
-  constructor(target = window) {
-    this.down = new Set();
-    this.pressed = new Set();
+  constructor(target = window, controls = null) {
+    this.keyboardDown = new Set();
+    this.keyboardPressed = new Set();
+    this.pointerActions = new Map();
+    this.pointerPressed = new Set();
 
     target.addEventListener("keydown", (event) => {
-      if (!CONTROL_CODES.has(event.code)) return;
+      const action = KEYBOARD_ACTIONS.get(event.code);
+      if (!action) return;
       event.preventDefault();
-      if (!this.down.has(event.code)) this.pressed.add(event.code);
-      this.down.add(event.code);
+      if (!this.keyboardDown.has(action)) this.keyboardPressed.add(action);
+      this.keyboardDown.add(action);
     });
 
     target.addEventListener("keyup", (event) => {
-      if (!CONTROL_CODES.has(event.code)) return;
+      const action = KEYBOARD_ACTIONS.get(event.code);
+      if (!action) return;
       event.preventDefault();
-      this.down.delete(event.code);
+      this.keyboardDown.delete(action);
     });
 
     target.addEventListener("blur", () => {
-      this.down.clear();
-      this.pressed.clear();
+      this.clear();
     });
+
+    target.addEventListener("pointerup", (event) => this.releasePointer(event.pointerId));
+    target.addEventListener("pointercancel", (event) => this.releasePointer(event.pointerId));
+
+    if (controls) this.bindTouchControls(controls);
+  }
+
+  bindTouchControls(controls) {
+    for (const button of controls.querySelectorAll("[data-control]")) {
+      const action = button.dataset.control;
+      if (!TOUCH_ACTIONS.has(action)) continue;
+
+      button.addEventListener("pointerdown", (event) => {
+        if (event.pointerType === "mouse" && event.button !== 0) return;
+        event.preventDefault();
+        if (![...this.pointerActions.values()].includes(action)) {
+          this.pointerPressed.add(action);
+        }
+        this.pointerActions.set(event.pointerId, action);
+        button.setPointerCapture?.(event.pointerId);
+      });
+
+      const release = (event) => {
+        event.preventDefault();
+        this.releasePointer(event.pointerId);
+      };
+      button.addEventListener("pointerup", release);
+      button.addEventListener("pointercancel", release);
+      button.addEventListener("lostpointercapture", release);
+    }
+  }
+
+  releasePointer(pointerId) {
+    this.pointerActions.delete(pointerId);
+  }
+
+  clear() {
+    this.keyboardDown.clear();
+    this.keyboardPressed.clear();
+    this.pointerActions.clear();
+    this.pointerPressed.clear();
+  }
+
+  isDown(action) {
+    return this.keyboardDown.has(action) || [...this.pointerActions.values()].includes(action);
   }
 
   snapshot() {
     const state = Object.freeze({
-      left: this.down.has("ArrowLeft"),
-      right: this.down.has("ArrowRight"),
-      thrust: this.down.has("ArrowUp"),
-      tuneDown: this.down.has("Comma"),
-      tuneUp: this.down.has("Period"),
-      advance: this.pressed.has("Space"),
-      advanceHeld: this.down.has("Space")
+      left: this.isDown("left"),
+      right: this.isDown("right"),
+      thrust: this.isDown("thrust"),
+      tuneDown: this.isDown("tuneDown"),
+      tuneUp: this.isDown("tuneUp"),
+      advance: this.keyboardPressed.has("advance") || this.pointerPressed.has("advance"),
+      advanceHeld: this.isDown("advance")
     });
-    this.pressed.clear();
+    this.keyboardPressed.clear();
+    this.pointerPressed.clear();
     return state;
   }
 }

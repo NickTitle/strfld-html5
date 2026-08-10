@@ -50,6 +50,133 @@ canvas:focus-visible {
   line-height: 1.5;
 }
 
+.touch-controls {
+  display: none;
+}
+
+.touch-controls-enabled {
+  overscroll-behavior: none;
+}
+
+.touch-controls-enabled body {
+  min-height: 100dvh;
+  overflow: hidden;
+  touch-action: none;
+}
+
+.touch-controls-enabled .game-shell {
+  height: 100dvh;
+  padding: 0.5rem;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  align-items: center;
+}
+
+.touch-controls-enabled canvas {
+  width: min(100%, calc((100dvh - 10.5rem) * 4 / 3));
+  max-height: calc(100dvh - 10.5rem);
+}
+
+.touch-controls-enabled #instructions {
+  display: none;
+}
+
+.touch-controls-enabled .touch-controls {
+  width: 100%;
+  min-height: 9.5rem;
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0 0.5rem max(0.25rem, env(safe-area-inset-bottom));
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.dpad {
+  width: 9rem;
+  height: 9rem;
+  display: grid;
+  grid-template: repeat(3, 1fr) / repeat(3, 1fr);
+}
+
+.control {
+  border: 2px solid rgb(255 255 255 / 65%);
+  color: #fff;
+  background: rgb(19 32 64 / 72%);
+  box-shadow: inset 0 0 0 2px rgb(7 11 27 / 55%);
+  font: inherit;
+  font-size: 1rem;
+  line-height: 1;
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.control:active {
+  background: rgb(56 133 209 / 88%);
+}
+
+.control-up {
+  grid-area: 1 / 2;
+  border-radius: 0.65rem 0.65rem 0 0;
+}
+
+.control-left {
+  grid-area: 2 / 1;
+  border-radius: 0.65rem 0 0 0.65rem;
+}
+
+.control-down {
+  grid-area: 3 / 2;
+  border-radius: 0 0 0.65rem 0.65rem;
+}
+
+.control-right {
+  grid-area: 2 / 3;
+  border-radius: 0 0.65rem 0.65rem 0;
+}
+
+.action-controls {
+  width: 9rem;
+  height: 8rem;
+  position: relative;
+}
+
+.action-controls .control {
+  position: absolute;
+  width: 4rem;
+  height: 4rem;
+  border-radius: 50%;
+}
+
+.control-o {
+  top: 0;
+  right: 0;
+}
+
+.control-x {
+  right: 4.25rem;
+  bottom: 0;
+}
+
+@media (orientation: landscape) and (max-height: 520px) {
+  .touch-controls-enabled .game-shell {
+    grid-template: 1fr / minmax(0, 1fr) auto;
+  }
+
+  .touch-controls-enabled canvas {
+    width: auto;
+    height: calc(100dvh - 1rem);
+    max-height: none;
+  }
+
+  .touch-controls-enabled .touch-controls {
+    width: 19rem;
+  }
+}
+
 .visually-hidden {
   position: absolute;
   width: 1px;
