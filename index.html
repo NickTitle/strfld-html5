@@ -20,6 +20,18 @@
       <p id="instructions">
         Arrow keys steer and thrust. Comma and period tune the radio. Space advances the story.
       </p>
+      <section id="touch-controls" class="touch-controls" aria-label="Touch controls" hidden>
+        <div class="dpad" aria-label="Movement controls">
+          <button class="control control-up" type="button" data-control="thrust" aria-label="Thrust">▲</button>
+          <button class="control control-left" type="button" data-control="left" aria-label="Rotate left">◀</button>
+          <button class="control control-down" type="button" data-control="advance" aria-label="Advance or interact">▼</button>
+          <button class="control control-right" type="button" data-control="right" aria-label="Rotate right">▶</button>
+        </div>
+        <div class="action-controls" aria-label="Radio controls">
+          <button class="control control-o" type="button" data-control="tuneUp" aria-label="O: tune radio up">O</button>
+          <button class="control control-x" type="button" data-control="tuneDown" aria-label="X: tune radio down">X</button>
+        </div>
+      </section>
     </main>
     <script type="module" src="./src/main.js"></script>
   </body>
