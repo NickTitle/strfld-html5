@@ -39,3 +39,16 @@ test("mobile markup maps the visible PICO-8 controls to all six game actions", (
     assert.match(index, new RegExp(mapping));
   }
 });
+
+test("desktop and mobile layouts show instructions matching their controls", () => {
+  assert.match(
+    index,
+    /<p id="instructions">\s*Arrow keys steer and thrust\. Comma and period tune the radio\. Space advances the story\.\s*<\/p>/
+  );
+  assert.match(
+    index,
+    /<p id="touch-instructions">\s*◀\/▶ rotate, ▲ thrust, ▼ advance\/interact, O tune up, X tune down\.\s*<\/p>/
+  );
+  assert.match(styles, /\.touch-controls-enabled #instructions\s*{\s*display: none;/);
+  assert.match(styles, /\.touch-controls-enabled \.touch-controls\s*{[^}]*display: block;/s);
+});

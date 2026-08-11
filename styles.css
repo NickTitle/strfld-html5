@@ -73,8 +73,8 @@ canvas:focus-visible {
 }
 
 .touch-controls-enabled canvas {
-  width: min(100%, calc((100dvh - 10.5rem) * 4 / 3));
-  max-height: calc(100dvh - 10.5rem);
+  width: min(100%, calc((100dvh - 12.5rem) * 4 / 3));
+  max-height: calc(100dvh - 12.5rem);
 }
 
 .touch-controls-enabled #instructions {
@@ -83,16 +83,26 @@ canvas:focus-visible {
 
 .touch-controls-enabled .touch-controls {
   width: 100%;
-  min-height: 9.5rem;
-  display: flex;
-  align-items: end;
-  justify-content: space-between;
-  gap: 1rem;
+  min-height: 11.5rem;
+  display: block;
   padding: 0 0.5rem max(0.25rem, env(safe-area-inset-bottom));
   touch-action: none;
   user-select: none;
   -webkit-user-select: none;
   -webkit-touch-callout: none;
+}
+
+#touch-instructions {
+  margin: 0 0 0.5rem;
+  font-size: clamp(0.65rem, 2.5vw, 0.85rem);
+  line-height: 1.35;
+}
+
+.touch-control-row {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 1rem;
 }
 
 .dpad {
