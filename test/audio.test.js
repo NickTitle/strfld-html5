@@ -19,6 +19,43 @@ function fakeAudio(url) {
   };
 }
 
+function fakeAudioContext() {
+  const sources = [];
+  const gains = [];
+  return {
+    destination: { type: "destination" },
+    resumeCalls: 0,
+    sources,
+    gains,
+    resume() {
+      this.resumeCalls += 1;
+      return Promise.resolve();
+    },
+    createMediaElementSource(sound) {
+      const source = {
+        sound,
+        target: null,
+        connect(target) {
+          this.target = target;
+        }
+      };
+      sources.push(source);
+      return source;
+    },
+    createGain() {
+      const gain = {
+        gain: { value: 1 },
+        target: null,
+        connect(target) {
+          this.target = target;
+        }
+      };
+      gains.push(gain);
+      return gain;
+    }
+  };
+}
+
 test("audio resources are created only after a browser unlock gesture", () => {
   const created = [];
   const audio = new AudioController((url) => {
@@ -70,4 +107,36 @@ test("loop volume clamps and one-shots restart from the beginning", () => {
   const finale = sounds.get("./assets/songs/game_end.mp3");
   assert.equal(finale.currentTime, 0);
   assert.equal(finale.playCalls, 1);
+});
+
+test("Web Audio gain nodes mix every loop independently of media-element volume", () => {
+  const created = [];
+  const context = fakeAudioContext();
+  const audio = new AudioController((url) => {
+    const sound = fakeAudio(url);
+    created.push(sound);
+    return sound;
+  }, () => context);
+
+  audio.unlock();
+
+  assert.equal(context.resumeCalls, 1);
+  assert.equal(context.sources.length, 17);
+  assert.equal(context.gains.length, 17);
+  assert.ok(created.every((sound) => sound.volume === 1));
+  assert.ok([...audio.gains.entries()]
+    .filter(([name]) => name === "engine" || name === "static" || name.startsWith("broadcast"))
+    .every(([, gain]) => gain.gain.value === 0));
+  assert.ok(context.sources.every((source) => source.target));
+  assert.ok(context.gains.every((gain) => gain.target === context.destination));
+
+  audio.setLoopVolume("broadcast4", 0.82);
+  assert.equal(audio.gains.get("broadcast4").gain.value, 0.82);
+  assert.equal(audio.gains.get("broadcast3").gain.value, 0);
+  assert.equal(audio.sounds.get("broadcast4").volume, 1);
+
+  audio.setLoopVolume("static", 2);
+  assert.equal(audio.gains.get("static").gain.value, 1);
+  audio.setLoopVolume("static", -1);
+  assert.equal(audio.gains.get("static").gain.value, 0);
 });
