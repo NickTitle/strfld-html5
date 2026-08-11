@@ -326,6 +326,59 @@ test("radio off, static, proximity, and turned-off behavior match source", () =>
   assert.equal(game.radio.activeArtifact, null);
 });
 
+test("radio output moves from one station through static to the next, then turns off", () => {
+  const audio = recordingAudio();
+  const game = new Game({ seed: 24, audio });
+  game.state = "playing";
+  game.ship.x = 10_000;
+  game.ship.y = 10_000;
+  const [first, second] = game.artifacts;
+  Object.assign(first, { frequency: 40, x: 10_800, y: 10_000 });
+  Object.assign(second, { frequency: 80, x: 10_800, y: 10_000 });
+  for (const artifact of game.artifacts.slice(2)) artifact.frequency = 200;
+
+  const latestVolumes = () => Object.fromEntries(
+    audio.events
+      .filter((event) => event.type === "volume")
+      .map((event) => [event.name, event.volume])
+  );
+
+  game.radioOffset = 40;
+  game.updateRadio();
+  let volumes = latestVolumes();
+  assert.equal(volumes.broadcast1, 1);
+  assert.equal(volumes.broadcast2, 0);
+  assert.equal(volumes.static, 0);
+  assert.equal(Object.entries(volumes).filter(([name, volume]) => name.startsWith("broadcast") && volume > 0).length, 1);
+
+  game.radioOffset = 47.5;
+  game.updateRadio();
+  volumes = latestVolumes();
+  assert.ok(Math.abs(volumes.broadcast1 - 0.4695) < 1e-12);
+  assert.ok(Math.abs(volumes.static - 0.397875) < 1e-12);
+  assert.equal(Object.entries(volumes).filter(([name, volume]) => name.startsWith("broadcast") && volume > 0).length, 1);
+
+  game.radioOffset = 60;
+  game.updateRadio();
+  volumes = latestVolumes();
+  assert.equal(volumes.static, 0.75);
+  assert.equal(Object.entries(volumes).filter(([name, volume]) => name.startsWith("broadcast") && volume > 0).length, 0);
+
+  game.radioOffset = 80;
+  game.updateRadio();
+  volumes = latestVolumes();
+  assert.equal(volumes.broadcast1, 0);
+  assert.equal(volumes.broadcast2, 1);
+  assert.equal(volumes.static, 0);
+  assert.equal(Object.entries(volumes).filter(([name, volume]) => name.startsWith("broadcast") && volume > 0).length, 1);
+
+  game.radioOffset = 0;
+  game.updateRadio();
+  volumes = latestVolumes();
+  assert.equal(volumes.static, 0);
+  assert.equal(Object.entries(volumes).filter(([name, volume]) => name.startsWith("broadcast") && volume > 0).length, 0);
+});
+
 test("artifact update and draw gates preserve the source rectangle and radius", () => {
   const game = new Game({ seed: 9 });
   game.state = "playing";
