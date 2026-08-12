@@ -68,34 +68,36 @@ canvas:focus-visible {
   height: 100dvh;
   padding: 0.5rem;
   display: grid;
-  grid-template-rows: minmax(0, 1fr) auto;
+  grid-template:
+    "game" minmax(0, 1fr)
+    "instructions" auto
+    "controls" auto / 1fr;
   align-items: center;
 }
 
 .touch-controls-enabled canvas {
+  grid-area: game;
   width: min(100%, calc((100dvh - 12.5rem) * 4 / 3));
   max-height: calc(100dvh - 12.5rem);
 }
 
 .touch-controls-enabled #instructions {
-  display: none;
+  grid-area: instructions;
+  margin: 0 0 0.5rem;
+  font-size: clamp(0.65rem, 2.5vw, 0.85rem);
+  line-height: 1.35;
 }
 
 .touch-controls-enabled .touch-controls {
+  grid-area: controls;
   width: 100%;
-  min-height: 11.5rem;
+  min-height: 9.5rem;
   display: block;
   padding: 0 0.5rem max(0.25rem, env(safe-area-inset-bottom));
   touch-action: none;
   user-select: none;
   -webkit-user-select: none;
   -webkit-touch-callout: none;
-}
-
-#touch-instructions {
-  margin: 0 0 0.5rem;
-  font-size: clamp(0.65rem, 2.5vw, 0.85rem);
-  line-height: 1.35;
 }
 
 .touch-control-row {
@@ -173,7 +175,9 @@ canvas:focus-visible {
 
 @media (orientation: landscape) and (max-height: 520px) {
   .touch-controls-enabled .game-shell {
-    grid-template: 1fr / minmax(0, 1fr) auto;
+    grid-template:
+      "game instructions" auto
+      "game controls" minmax(0, 1fr) / minmax(0, 1fr) 19rem;
   }
 
   .touch-controls-enabled canvas {
@@ -184,6 +188,11 @@ canvas:focus-visible {
 
   .touch-controls-enabled .touch-controls {
     width: 19rem;
+  }
+
+  .touch-controls-enabled #instructions {
+    align-self: end;
+    margin-bottom: 0.5rem;
   }
 }
 

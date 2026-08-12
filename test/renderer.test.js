@@ -4,7 +4,8 @@ import test from "node:test";
 import { COLORS } from "../src/constants.js";
 import { Game } from "../src/game.js";
 import { SeededRandom } from "../src/random.js";
-import { CanvasRenderer } from "../src/renderer.js";
+import { CanvasRenderer, layoutStoryHud } from "../src/renderer.js";
+import { STORY } from "../src/story.js";
 
 function recordingContext() {
   const operations = [];
@@ -24,7 +25,15 @@ function recordingContext() {
     closePath() {},
     arc() {},
     stroke() {},
-    fillText() {},
+    font: "",
+    measureText(text) {
+      return {
+        width: String(text).length * 10,
+        actualBoundingBoxAscent: 12,
+        actualBoundingBoxDescent: 4
+      };
+    },
+    fillText(text, x, y) { operations.push({ type: "fillText", text, x, y, color: this.fillStyle }); },
     strokeRect() {},
     fill() {
       operations.push({ type: "fill", color: this.fillStyle });
@@ -34,6 +43,32 @@ function recordingContext() {
     }
   };
 }
+
+test("every story and paused prompt line stays inside the 640x480 display bounds", () => {
+  const context = recordingContext();
+
+  for (const story of STORY) {
+    const layout = layoutStoryHud(context, story.text, story.paused);
+    assert.ok(layout.lines.length >= 1, story.text);
+    assert.equal(
+      layout.lines.map((line) => line.text).join(" ").replaceAll(/\s+/g, " "),
+      story.text.replaceAll(/\s+/g, " "),
+      story.text
+    );
+    for (const line of layout.lines) {
+      assert.ok(line.bounds.left >= 0, story.text);
+      assert.ok(line.bounds.top >= 0, story.text);
+      assert.ok(line.bounds.right <= 632, story.text);
+      assert.ok(line.bounds.bottom <= 476, story.text);
+    }
+    if (layout.prompt) {
+      assert.ok(layout.prompt.bounds.left >= 0, story.text);
+      assert.ok(layout.prompt.bounds.top >= 0, story.text);
+      assert.ok(layout.prompt.bounds.right <= 640, story.text);
+      assert.ok(layout.prompt.bounds.bottom <= layout.panel.y - 4, story.text);
+    }
+  }
+});
 
 test("renderer preserves star, artifact, ship, star, HUD order and minimap offsets", () => {
   const context = recordingContext();

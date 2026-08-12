@@ -1,5 +1,6 @@
 import { AudioController } from "./audio.js";
 import { FIXED_STEP_SECONDS } from "./constants.js";
+import { configureControlMode } from "./control-mode.js";
 import { Game } from "./game.js";
 import { KeyboardInput, supportsTouchControls } from "./input.js";
 import { CanvasRenderer } from "./renderer.js";
@@ -38,6 +39,10 @@ export function startGame({ canvas, controls = null, requestFrame = requestAnima
 const canvas = document.querySelector("#game");
 const controls = document.querySelector("#touch-controls");
 const touchCapable = supportsTouchControls();
-document.documentElement.classList.toggle("touch-controls-enabled", touchCapable);
-if (controls) controls.hidden = !touchCapable;
-if (canvas) startGame({ canvas, controls: touchCapable ? controls : null });
+const activeControls = configureControlMode({
+  root: document.documentElement,
+  controls,
+  instructions: document.querySelector("#instructions"),
+  touchCapable
+});
+if (canvas) startGame({ canvas, controls: activeControls });

@@ -4,6 +4,98 @@ function integerDivide(dividend, divisor) {
   return Math.trunc(dividend / divisor);
 }
 
+const STORY_TEXT_X = 150;
+const STORY_RIGHT_INSET = 8;
+const STORY_BOTTOM_INSET = 4;
+const STORY_LINE_GAP = 4;
+const STORY_PANEL_PADDING_TOP = 2;
+const STORY_PROMPT_WIDTH = 80;
+const STORY_PROMPT_HEIGHT = 20;
+const STORY_PROMPT_TEXT = "*SPACE*";
+
+function measuredMetric(metrics, property, fallback) {
+  const value = metrics[property];
+  return Number.isFinite(value) && value > 0 ? Math.ceil(value) : fallback;
+}
+
+function wrapMeasuredText(context, text, maxWidth) {
+  if (!text) return [""];
+  const lines = [];
+  let remaining = text;
+
+  while (context.measureText(remaining).width > maxWidth) {
+    let fittingEnd = 1;
+    while (
+      fittingEnd <= remaining.length
+      && context.measureText(remaining.slice(0, fittingEnd)).width <= maxWidth
+    ) {
+      fittingEnd += 1;
+    }
+
+    const fitted = remaining.slice(0, Math.max(1, fittingEnd - 1));
+    const whitespaceBreak = Math.max(fitted.lastIndexOf(" "), fitted.lastIndexOf("\t"));
+    const breakAt = whitespaceBreak > 0 ? whitespaceBreak : fitted.length;
+    lines.push(remaining.slice(0, breakAt).trimEnd());
+    remaining = remaining.slice(breakAt).trimStart();
+  }
+
+  lines.push(remaining);
+  return lines;
+}
+
+export function layoutStoryHud(context, text, paused) {
+  const fontMetrics = context.measureText("Mg");
+  const ascent = measuredMetric(fontMetrics, "actualBoundingBoxAscent", 14);
+  const descent = measuredMetric(fontMetrics, "actualBoundingBoxDescent", 4);
+  const lineHeight = ascent + descent + STORY_LINE_GAP;
+  const maxWidth = VIEW_WIDTH - STORY_TEXT_X - STORY_RIGHT_INSET;
+  const texts = wrapMeasuredText(context, text, maxWidth);
+  const finalBaseline = VIEW_HEIGHT - STORY_BOTTOM_INSET - descent;
+  const firstBaseline = finalBaseline - (texts.length - 1) * lineHeight;
+  const lines = texts.map((line, index) => {
+    const y = firstBaseline + index * lineHeight;
+    const width = context.measureText(line).width;
+    return {
+      text: line,
+      x: STORY_TEXT_X,
+      y,
+      bounds: {
+        left: STORY_TEXT_X,
+        top: y - ascent,
+        right: STORY_TEXT_X + width,
+        bottom: y + descent
+      }
+    };
+  });
+  const panelTop = firstBaseline - ascent - STORY_PANEL_PADDING_TOP;
+  const promptMetrics = context.measureText(STORY_PROMPT_TEXT);
+  const promptWidth = promptMetrics.width;
+  const promptBottom = panelTop;
+  const promptBaseline = promptBottom - STORY_BOTTOM_INSET - descent;
+
+  return {
+    lines,
+    panel: { x: 0, y: panelTop, width: VIEW_WIDTH, height: VIEW_HEIGHT - panelTop },
+    prompt: paused ? {
+      text: STORY_PROMPT_TEXT,
+      x: VIEW_WIDTH - STORY_PROMPT_WIDTH + (STORY_PROMPT_WIDTH - promptWidth) / 2,
+      y: promptBaseline,
+      panel: {
+        x: VIEW_WIDTH - STORY_PROMPT_WIDTH,
+        y: promptBottom - STORY_PROMPT_HEIGHT,
+        width: STORY_PROMPT_WIDTH,
+        height: STORY_PROMPT_HEIGHT
+      },
+      bounds: {
+        left: VIEW_WIDTH - STORY_PROMPT_WIDTH + (STORY_PROMPT_WIDTH - promptWidth) / 2,
+        top: promptBaseline - ascent,
+        right: VIEW_WIDTH - STORY_PROMPT_WIDTH + (STORY_PROMPT_WIDTH + promptWidth) / 2,
+        bottom: promptBaseline + descent
+      }
+    } : null
+  };
+}
+
 export class CanvasRenderer {
   constructor(canvas) {
     this.canvas = canvas;
@@ -41,15 +133,32 @@ export class CanvasRenderer {
       }
     } else if (game.state === "playing" || game.state === "fadeOut") {
       context.fillStyle = "rgba(255, 255, 255, 0.73)";
-      context.fillRect(0, 460, VIEW_WIDTH, 20);
-      context.fillStyle = COLORS.darkGrey;
       context.font = "18px 'Starfield Pixel', monospace";
-      context.fillText(game.story.text, 150, 478);
-      if (game.story.started && game.story.paused) {
+      const storyLayout = layoutStoryHud(
+        context,
+        game.story.text,
+        game.story.started && game.story.paused
+      );
+      context.fillRect(
+        storyLayout.panel.x,
+        storyLayout.panel.y,
+        storyLayout.panel.width,
+        storyLayout.panel.height
+      );
+      context.fillStyle = COLORS.darkGrey;
+      for (const line of storyLayout.lines) {
+        context.fillText(line.text, line.x, line.y);
+      }
+      if (storyLayout.prompt) {
         context.fillStyle = "rgba(255, 255, 255, 0.73)";
-        context.fillRect(560, 440, 80, 20);
+        context.fillRect(
+          storyLayout.prompt.panel.x,
+          storyLayout.prompt.panel.y,
+          storyLayout.prompt.panel.width,
+          storyLayout.prompt.panel.height
+        );
         context.fillStyle = COLORS.darkGrey;
-        context.fillText("*SPACE*", 570, 458);
+        context.fillText(storyLayout.prompt.text, storyLayout.prompt.x, storyLayout.prompt.y);
       }
       this.drawMinimap(game);
       this.drawRadio(game.radioOffset, game.radio.receptionVolume);
