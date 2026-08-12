@@ -1,4 +1,5 @@
 import "./audio.test.js";
+import "./control-mode.test.js";
 import "./game.test.js";
 import "./input.test.js";
 import "./renderer.test.js";
